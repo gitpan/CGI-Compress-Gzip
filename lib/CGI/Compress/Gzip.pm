@@ -84,6 +84,17 @@ to a true value, then this module will add an HTTP header entry called
 B<X-non-gzip-reason> with an explanation of why it chose not to gzip
 the output stream.
 
+=head2 Buffering
+
+The Zlib library introduces latencies.  In some cases, this module may
+delay output until the CGI object is garbage collected, presumably at
+the end of the program.  This buffering can be detrimental to
+long-lived programs which are supposed to have incremental output,
+causing browser timeouts.  To compensate, compression is automatically
+disabled when autoflush (i.e. the $| variable) is set to true.  Future
+versions may try to enable autoflushing on the Zlib filehandles, if
+possible [Help wanted].
+
 =cut
 
 require 5.005_62;
@@ -93,7 +104,7 @@ use Carp;
 use CGI;
 
 our @ISA = qw(CGI);
-our $VERSION = '0.18';
+our $VERSION = '0.19';
 
 # Package globals
 
@@ -259,6 +270,12 @@ sub _canCompress
    $compress &&= $global_use_compression;
    $reason ||= "programmer request" if (!$compress);
 
+   $CGI::Compress::Gzip::wrapper::flush = $|; # save it in case we change it
+
+   # Check buffering (disable if autoflushing)
+   $compress &&= (!$CGI::Compress::Gzip::wrapper::flush);
+   $reason ||= "programmer wants unbuffered output" if (!$compress);
+
    # Check that browser supports gzip
    my $acc = $ENV{HTTP_ACCEPT_ENCODING};
    $compress &&= ($acc && $acc =~ /\bgzip\b/i);
@@ -389,7 +406,8 @@ sub _startCompression
    my $header = shift;
 
    $CGI::Compress::Gzip::wrapper::use_fh ||= \*STDOUT;
-   
+   binmode $CGI::Compress::Gzip::wrapper::use_fh;
+
    my $filehandle = CGI::Compress::Gzip::wrapper->new($CGI::Compress::Gzip::wrapper::use_fh, "wb");
    if (!$filehandle)
    {
@@ -398,7 +416,13 @@ sub _startCompression
    }
    
    # All output from here on goes to our new filehandle
+   if ($CGI::Compress::Gzip::wrapper::flush && UNIVERSAL::can($filehandle, "autoflush"))
+   {
+      $filehandle->autoflush();
+   }
+
    select $filehandle;
+
    $self->{'.zlib_fh'} = $filehandle;  # needed for destructor
    
    tied(${$self->{'.zlib_fh'}})->{pending_header} = $header;

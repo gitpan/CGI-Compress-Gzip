@@ -21,6 +21,13 @@ elsif ($ARGV[0] && $ARGV[0] eq "type")
    print $cgi->header(-Type => "foo/bar");
    print @ARGV;
 }
+elsif ($ARGV[0] && $ARGV[0] eq "unbuffer")
+{
+   $| = 1;
+   shift;
+   print $cgi->header();
+   print @ARGV;
+}
 elsif ($ARGV[0] && $ARGV[0] eq "fh")
 {
    shift;

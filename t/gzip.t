@@ -6,9 +6,11 @@ use Carp;
 $SIG{__WARN__} = \&Carp::confess;
 $SIG{__DIE__} = \&Carp::cluck;
 
+$| = 0; # This module behaves differently whether autoflush is on or off
+
 BEGIN
 { 
-   use Test::More tests => 16;
+   use Test::More tests => 18;
    use_ok("CGI::Compress::Gzip");
 }
 
@@ -20,7 +22,6 @@ my $compareheader = CGI->new("")->header();
 my $compareheader2 = CGI->new("")->header(-Content_Type => "text/html; charset=UTF-8");
 my $compareheader3 = CGI->new("")->header(-Type => "foo/bar");
 my $compareredir = CGI->new("")->redirect($redir);
-
 
 eval "use IO::Zlib; use Compress::Zlib";
 my $hasZlib = $@ ? 0 : 1;
@@ -57,6 +58,7 @@ my $cmd = "$basecmd '$compare'";
 my $cmd2 = "$basecmd charset '$compare'";
 my $cmd3 = "$basecmd type '$compare'";
 my $redircmd = "$basecmd redirect '$redir'";
+my $bufcmd = "$basecmd unbuffer '$compare'";
 my $fhcmd = "$basecmd fh '$compare'";
 
 # no compression
@@ -112,6 +114,15 @@ my $fhcmd = "$basecmd fh '$compare'";
       $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/mi, 
       "CGI redirect (header encoding text)");
    is($out, $compareredir, "CGI redirect (body test)");
+}
+
+# unbuffered CGI
+{
+   my $out = `$cmd`;
+   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//si && 
+      $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/mi, 
+      "unbuffered CGI (header encoding text)");
+   is($out, $compareheader.$compare, "unbuffered CGI (body test)");
 }
 
 # redirected filehandle
