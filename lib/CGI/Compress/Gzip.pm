@@ -4,6 +4,26 @@ package CGI::Compress::Gzip;
 
 CGI::Compress::Gzip - CGI with automatically compressed output
 
+=head1 LICENSE
+
+Copyright Clotho Advanced Media Inc.
+
+This software is released under the GNU Public License v2 by Clotho
+Advanced Media, Inc.  See the "LICENSE" file, or visit
+http://www.clotho.com/code/GPL
+
+The definitive source of Clotho Advanced Media software is
+http://www.clotho.com/code/
+
+All of our software is also available under commercial license.  If
+the GPL does not meet the needs of your project, please contact us at
+info@clotho.com or visit the above URL.
+
+We release open source software to help the world.  We hope that you
+will enjoy this software, and we also hope and that you will hire us.
+As authors of this software, we are best able to help you integrate it
+into your project and to assist you with any problems.
+
 =head1 SYNOPSIS
 
    use CGI::Compress::Gzip;
@@ -14,9 +34,9 @@ CGI::Compress::Gzip - CGI with automatically compressed output
 
 =head1 DESCRIPTION
 
-[This is still alpha code, but it works in some environments.  See
-README for caveats.  I've received reports that it fails under
-Windows.  Help!]
+[This is still beta code, but we use it in our production Linux
+environments.  See README for caveats.  I've received reports that it
+fails under Windows and Solaris.  Help!]
 
 CGI::Compress::Gzip extends the CGI class to auto-detect whether the
 client browser wants compressed output and, if so and if the script
@@ -42,6 +62,9 @@ is turned on.
 Naturally, it is crucial that the CGI application output nothing
 before the header is printed.  If this is violated, things will go
 badly.
+
+Note: the default mime-type selection of text/* can be changed by
+subclasses.  See below.
 
 =head2 Compression
 
@@ -72,7 +95,7 @@ use Carp;
 use CGI;
 
 our @ISA = qw(CGI);
-our $VERSION = '0.13';
+our $VERSION = '0.15';
 
 # Package globals
 
@@ -161,6 +184,28 @@ sub useFileHandle
 }
 #==============================
 
+=item isCompressibleType CONTENT-TYPE
+
+Given a MIME type (with possible charset attached), return a boolean
+indicating if this media type is a good candidate for compression.
+This implementation is simply:
+
+    return $type =~ /^text\//;
+
+Subclasses may wish to override this method to apply different
+criteria.
+
+=cut
+
+sub isCompressibleType
+{
+   my $self = shift;
+   my $type = shift || "";
+
+   return $type =~ /^text\//;
+}
+#==============================
+
 =item header HEADER-ARGS
 
 Return a CGI header with the compression flags set properly.  Returns
@@ -197,7 +242,7 @@ sub header
 #==============================
 
 # Enable the compression filehandle if:
-#  - The output is text/* (default is text/html if unspecified)
+#  - The mime-type is appropriate (text/* is the default)
 #  - The programmer wants compression, indicated by the useCompression()
 #    method
 #  - Client wants compression, indicated by the Accepted-Encoding HTTP field
@@ -210,7 +255,7 @@ sub _canCompress
 
    my $compress = 1;
    my $reason = "";
-   my @newheader = (@$header);
+   my @newheader;
 
    # Check programmer preference
    $compress &&= $global_use_compression;
@@ -228,24 +273,46 @@ sub _canCompress
    my $content_type = "";
    if ($compress)
    {
-      my $encodingIndex = undef;
-      for (my $i=0; $i < @$header; $i++)
+      if (@$header && $header->[0] =~ /^[a-z]/)
       {
-         next if (!defined $header->[$i]);
-         if ($i == 0 && $header->[$i] =~ /^[a-z]/)
+         # Using unkeyed version of arguments - convert to the keyed
+         # version
+
+         # arg order comes from the header() function in CGI.pm
+         my @flags = qw(Content_Type Status Cookie Target Expires
+                        NPH Charset Attachment P3P);
+         for (my $i=0; $i < @$header; $i++)
          {
-            $content_type = $header->[$i];
+            if ($i < @flags)
+            {
+               push @newheader, "-".$flags[$i], $header->[$i];
+            }
+            else
+            {
+               # Extra args
+               push @newheader, $header->[$i];
+            }
          }
-         elsif ($header->[$i] =~ /^-?Content[-_]Type$/i)
+      }
+      else
+      {
+         @newheader = (@$header);
+      }
+
+      my $encodingIndex = undef;
+      for (my $i=0; $i < @newheader; $i++)
+      {
+         next if (!defined $newheader[$i]);
+         if ($newheader[$i] =~ /^-?Content[-_]Type$/i)
          {
-            $content_type = $header->[++$i];
+            $content_type = $newheader[++$i];
          }
-         elsif ($header->[$i] =~ /^-?Content[-_]Type: (.*)$/i)
+         elsif ($newheader[$i] =~ /^-?Content[-_]Type: (.*)$/i)
          {
             $content_type = $1;
          }
-         elsif (($header->[$i] =~ /^-?Status$/i && $header->[++$i] =~ /(\d+)/) ||
-                $header->[$i] =~ /^-?Status:\s*(\d+)/i)
+         elsif (($newheader[$i] =~ /^-?Status$/i && $newheader[++$i] =~ /(\d+)/) ||
+                $newheader[$i] =~ /^-?Status:\s*(\d+)/i)
          {
             my $status = $1;
             if ($status != 200)
@@ -254,10 +321,10 @@ sub _canCompress
                last;
             }
          }
-         elsif (($header->[$i] =~ /^-?Content[-_]Encoding$/i && ++$i) ||
-                $header->[$i] =~ /^-?Content[-_]Encoding: $/i)
+         elsif (($newheader[$i] =~ /^-?Content[-_]Encoding$/i && ++$i) ||
+                $newheader[$i] =~ /^-?Content[-_]Encoding: $/i)
          {
-            if ($header->[$i] =~ /\bgzip\b/i)
+            if ($newheader[$i] =~ /\bgzip\b/i)
             {
                # Already gzip compressed
                $compress = 0;
@@ -285,9 +352,10 @@ sub _canCompress
    }
    $reason ||= "someone already requested gzip" if (!$compress);
 
-   if ($content_type && $content_type !~ /^text\/\w+/)
+   $content_type ||= "text/html";
+   if (!$self->isCompressibleType($content_type))
    {
-      # Not text output (note: no content-type means text/html)
+      # Not compressible media
       $compress = 0;
    }
    $reason ||= "incompatible content-type $content_type" if (!$compress);
@@ -517,6 +585,8 @@ __END__
 
 * Fix under Windows (MinGW) -- Help please!
 
+* Fix under Solaris -- Help please!
+
 * test in FastCGI environments -- Help please!
 
 * Handle errors more gracefully in WRITE()
@@ -532,8 +602,4 @@ available from Apache::Compress or Apache::GzipChain.
 
 =head1 AUTHOR
 
-Chris Dolan, Clotho Advanced Media, I<chris@clotho.com>
-
-=head1 LICENSE
-
-GPLv2, see the COPYING file in this distribution.
+Clotho Advanced Media, I<cpan@clotho.com>

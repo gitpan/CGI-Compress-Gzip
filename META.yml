@@ -1,12 +1,20 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         CGI-Compress-Gzip
-version:      0.13
-version_from: Gzip.pm
-installdirs:  site
-requires:
-    CGI:                           2
-    IO::Zlib:                      1.01
-
+--- #YAML:1.0
+name: CGI-Compress-Gzip
+version: 0.15
+license: restrictive
 distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.16
+requires:
+  CGI: 2.00
+  IO::Zlib: 1.01
+recommends: {}
+build_requires:
+  Test::More: 0.01
+conflicts: {}
+provides:
+  CGI::Compress::Gzip:
+    file: lib/CGI/Compress/Gzip.pm
+    version: 0.15
+  CGI::Compress::Gzip::wrapper:
+    file: lib/CGI/Compress/Gzip.pm
+    version: 0.15
+generated_by: Module::Build version 0.21

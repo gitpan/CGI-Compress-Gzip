@@ -9,6 +9,12 @@ if ($ARGV[0] && $ARGV[0] eq "redirect")
    shift;
    print $cgi->redirect(@ARGV);
 }
+elsif ($ARGV[0] && $ARGV[0] eq "charset")
+{
+   shift;
+   print $cgi->header("text/html; charset=UTF-8");
+   print @ARGV;
+}
 else
 {
    print $cgi->header();

@@ -1,3 +1,20 @@
+2003-12-30 11:48  chris
+
+	* README: Fix README
+
+2003-12-30 11:44  chris
+
+	* index.html, lib/CGI/Compress/Gzip.pm, t/gzip.t, t/testhelp: v0.15
+	* Fix bug parsing CGI header() arguments * Add
+	programmer-configurable mim-type selection
+
+2003-09-16 12:49  chris
+
+	* Build.PL, COPYRIGHT, Gzip.pm, LICENSE, MANIFEST, Makefile.PL,
+	README, index.html, test.pl, testhelp, lib/CGI/Compress/Gzip.pm,
+	t/gzip.t, t/testhelp: v0.14 Update for new build and license
+	infrastructure
+
 2003-08-28 11:07  chris
 
 	* Gzip.pm, MANIFEST, README, test.pl, testhelp: v0.13 Add support
@@ -84,10 +101,10 @@
 2003-01-20 14:14  chris
 
 	* COPYRIGHT, Gzip.pm, MANIFEST, Makefile.PL, README, test.pl:
-	Initial revision
+	Initial import
 
 2003-01-20 14:14  chris
 
 	* COPYRIGHT, Gzip.pm, MANIFEST, Makefile.PL, README, test.pl:
-	Initial import
+	Initial revision
 

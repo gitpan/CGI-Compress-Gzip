@@ -1,9 +1,12 @@
 ChangeLog
-COPYRIGHT
-Gzip.pm
+lib/CGI/Compress/Gzip.pm
+Build.PL
+index.html
+LICENSE
 Makefile.PL
 MANIFEST
 README
-test.pl
-testhelp
-META.yml                                Module meta-data (added by MakeMaker)
+t/gzip.t
+t/testhelp
+META.yml
+
