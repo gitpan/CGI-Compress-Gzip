@@ -4,5 +4,13 @@ use strict;
 use CGI::Compress::Gzip;
 
 my $cgi = CGI::Compress::Gzip->new("");
-print $cgi->header();
-print @ARGV;
+if ($ARGV[0] && $ARGV[0] eq "redirect")
+{
+   shift;
+   print $cgi->redirect(@ARGV);
+}
+else
+{
+   print $cgi->header();
+   print @ARGV;
+}

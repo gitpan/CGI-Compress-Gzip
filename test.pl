@@ -1,6 +1,6 @@
 BEGIN
 { 
-   use Test::More tests => 8;
+   use Test::More tests => 10;
    use_ok(CGI::Compress::Gzip);
 }
 
@@ -12,9 +12,11 @@ $SIG{__WARN__} = \&Carp::confess;
 $SIG{__DIE__} = \&Carp::cluck;
 
 my $compare = "Hello World!";  # expected output
+my $redir = "http://www.foo.com/";
 
 # Get CGI header for comparison
 my $compareheader = CGI->new("")->header();
+my $compareredir = CGI->new("")->redirect($redir);
 
 
 eval "use IO::Zlib; use Compress::Zlib";
@@ -47,7 +49,9 @@ is ($testbuf, $compare, "Compress::Zlib double-check");
    is($out, $zcompare, "IO::Zlib test");
 }
 
-my $cmd = "$^X -Iblib/arch -Iblib/lib testhelp '$compare'";
+my $basecmd = "$^X -Iblib/arch -Iblib/lib testhelp";
+my $cmd = "$basecmd '$compare'";
+my $redircmd = "$basecmd redirect '$redir'";
 
 # no compression
 {
@@ -67,6 +71,17 @@ my $cmd = "$^X -Iblib/arch -Iblib/lib testhelp '$compare'";
       $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/mi,
       "Gzipped CGI template (header encoding text)");
    is($out, $compareheader.$zcompare, "Gzipped CGI template (body test)");
+}
+
+# CGI redirection and compression
+{
+   local $ENV{HTTP_ACCEPT_ENCODING} = "gzip";
+
+   my $out = `$redircmd`;
+   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//si && 
+      $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/mi, 
+      "CGI redirect (header encoding text)");
+   is($out, $compareredir, "CGI redirect (body test)");
 }
 
 unlink($testfile);

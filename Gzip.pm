@@ -72,7 +72,7 @@ use Carp;
 use CGI;
 
 our @ISA = qw(CGI);
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 # Package globals
 
@@ -231,6 +231,7 @@ sub _canCompress
       my $encodingIndex = undef;
       for (my $i=0; $i < @$header; $i++)
       {
+         next if (!defined $header->[$i]);
          if ($i == 0 && $header->[$i] =~ /^[a-z]/)
          {
             $content_type = $header->[$i];
@@ -243,8 +244,18 @@ sub _canCompress
          {
             $content_type = $1;
          }
+         elsif (($header->[$i] =~ /^-?Status$/i && $header->[++$i] =~ /(\d+)/) ||
+                $header->[$i] =~ /^-?Status:\s*(\d+)/i)
+         {
+            my $status = $1;
+            if ($status != 200)
+            {
+               $compress = 0;
+               last;
+            }
+         }
          elsif (($header->[$i] =~ /^-?Content[-_]Encoding$/i && ++$i) ||
-             $header->[$i] =~ /^-?Content[-_]Encoding: $/i)
+                $header->[$i] =~ /^-?Content[-_]Encoding: $/i)
          {
             if ($header->[$i] =~ /\bgzip\b/i)
             {

@@ -1,12 +1,19 @@
 CGI::Compress::Gzip
 
-WARNING: as of v0.11 this is still alpha-quality code, but it's nearly
-beta.  It runs just fine for simple standalone scripts in perl 5.6.0,
-5.6.1 and 5.8.0 (linux and darwin), and it works under mod_perl in
-5.6.0 (darwin).  0.11 fixed a content-type bug and added handy
-diagnostics.  0.10 finally got mod_perl working.  0.04 just fixed some
-minor issues.  0.03 was an improvement over 0.02 in that the mod_perl
-headers work, but the gzip filter was still broken.
+WARNING: as of v0.13 this is still alpha-quality code on some
+platforms.  It runs just fine in perl 5.6.0, 5.6.1 and 5.8.0 and
+mod_perl 5.6.0 and 5.6.1 under linux and darwin.  It is known to fail
+on Windows and Solaris.  Debugging help would be greatly appreciated
+on these platforms!
+
+0.13 added support for CGI redirect() method (turn off compression if
+     HTTP Status is not 200)
+0.12 fixed bug where header changes weren't rolled back on failure
+0.11 fixed a content-type bug and added handy diagnostics.
+0.10 finally got mod_perl working.
+0.04 just fixed some minor issues.
+0.03 was an improvement over 0.02 in that the mod_perl headers work,
+     but the gzip filter was still broken.
 
 This module is maintained by Clotho Advanced Media, www.clotho.com.
 Contact us at cpan@clotho.com.
@@ -37,8 +44,12 @@ KNOWN ISSUES:
 * This module fails tests specifically under Windows in ways I do not
   understand, as reported by CPANPLUS testers.  There is some problem
   with my IO::Zlib tests.  If anyone knows about IO::Zlib failures or
-  caveats on Windows, please let me know.
+  caveats on Windows, please let me know.  It *might* be related to
+  binmode, but I have not tested this theory.
+
 * This module has been observer to fail on Solaris.  The error is very
-  strange and may be Compress::Zlib's fault.  I don't know yet...
+  strange and may be Compress::Zlib's fault.  In a nutshell,
+  Compress::Zlib gets into infinite recursion in its AUTOLOAD
+  function.  I don't know the cause yet...
 
 

@@ -1,3 +1,9 @@
+2003-08-28 11:07  chris
+
+	* Gzip.pm, MANIFEST, README, test.pl, testhelp: v0.13 Add support
+	for CGI redirect() calls (if HTTP Status is not 200, content should
+	not be compressed).
+
 2003-08-22 17:50  tasc
 
 	* Gzip.pm: v0.12 - Fix bug where headers were altered even when
