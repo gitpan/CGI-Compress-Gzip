@@ -6,3 +6,4 @@ MANIFEST
 README
 test.pl
 testhelp
+META.yml                                Module meta-data (added by MakeMaker)

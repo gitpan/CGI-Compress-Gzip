@@ -1,6 +1,8 @@
+# This is a simple script that is used by test.pl
+
 use strict;
 use CGI::Compress::Gzip;
 
-my $cgi = new CGI::Compress::Gzip("");
+my $cgi = CGI::Compress::Gzip->new("");
 print $cgi->header();
 print @ARGV;

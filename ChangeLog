@@ -1,3 +1,12 @@
+2003-08-22 17:50  tasc
+
+	* Gzip.pm: v0.12 - Fix bug where headers were altered even when
+	compression was inappropriate.
+
+2003-03-31 14:01  chris
+
+	* Gzip.pm, testhelp: Minor style/comment changes
+
 2003-03-14 10:06  chris
 
 	* Gzip.pm, README: v0.11 Handle default content-type of text/html
