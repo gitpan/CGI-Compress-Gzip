@@ -1,10 +1,5 @@
 package CGI::Compress::Gzip;
 
-
-use Data::Dumper;  # debugging...
-
-
-
 =head1 NAME
 
 CGI::Compress::Gzip - CGI with automatically compressed output
@@ -36,8 +31,9 @@ Content-Type.
 At the time that a header is requested, CGI::Compress::Gzip checks the
 HTTP_ACCEPT_ENCODING environment variable (passed by Apache).  If this
 variable includes the flag "gzip" and the outgoing mime-type is
-"text/html", then gzipped output is prefered.  The header is altered
-to add the "Content-Encoding: gzip" flag compression is turned on.
+"text/*", then gzipped output is prefered.  The header is altered to
+add the "Content-Encoding: gzip" flag which indicates that compression
+is turned on.
 
 Naturally, it is crucial that the CGI application output nothing
 before the header is printed.  If this is violated, things will go
@@ -60,7 +56,7 @@ use Carp;
 use CGI;
 
 our @ISA = qw(CGI);
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 # Package globals
 
@@ -165,41 +161,88 @@ sub header
 {
    my $self = shift;
    # further args passed on below
-
+   
    if ($self->{'.header_printed'} && $self->{'.zlib_fh'})
    {
       return tied(${$self->{'.zlib_fh'}})->{pending_header};
    }
 
-   my $header = $self->SUPER::header(@_);
-   $self->_startCompression(\$header);
+   my @args = (@_);
+   my $compress = $self->_canCompress(\@args);
+
+   my $header = $self->SUPER::header(@args);
+   $self->_startCompression($header) if ($compress);
    return $header;
 }
 #==============================
 
 # Enable the compression filehandle if:
-#  - The output is text/html
+#  - The output is text/*
 #  - The programmer wants compression, indicated by the useCompression()
 #    method
 #  - Client wants compression, indicated by the Accepted-Encoding HTTP field
 #  - The IO::Zlib compression library is available
 
-sub _startCompression
+sub _canCompress
 {
    my $self = shift;
-   my $R_header = shift;  # Passed by reference so we can change it
+   my $header = shift;  # array ref
 
    my $compress = 1;
 
    # Check programmer preference
    $compress = $global_use_compression;
 
-   # Check that the output will be HTML
-   $compress &&= $$R_header =~ /^Content-Type:.*\btext\/html\b/m;
-
    # Check that browser supports gzip
    my $acc = $ENV{HTTP_ACCEPT_ENCODING};
    $compress &&= ($acc && $acc =~ /\bgzip\b/);
+
+   # Check that the output will be HTML
+   $compress &&= $header && ref($header);
+   if ($compress)
+   {
+      my $encodingIndex = undef;
+      for (my $i=0; $i < @$header; $i++)
+      {
+         if ($i == 0 || 
+             ($header->[$i] =~ /^-?Content[-_]Type$/i && ++$i) ||
+             $header->[$i] =~ /^-?Content[-_]Type: $/i)
+         {
+            if ($header->[$i] !~ /\btext\/\w+/)
+            {
+               # Not text output
+               $compress = 0;
+               last;
+            }
+         }
+         elsif (($header->[$i] =~ /^-?Content[-_]Encoding$/i && ++$i) ||
+             $header->[$i] =~ /^-?Content[-_]Encoding: $/i)
+         {
+            if ($header->[$i] =~ /\bgzip\b/)
+            {
+               # Already gzip compressed
+               $compress = 0;
+               last;
+            }
+            else
+            {
+               $encodingIndex = $i;
+            }
+         }
+      }
+      if ($compress)
+      {
+         if (defined $encodingIndex)
+         {
+            $header->[$encodingIndex] =~ s/^(?:-?Content[-_]Encoding:\s*)/gzip, /mio
+                or $header->[$encodingIndex] = "gzip, " . $header->[$encodingIndex];
+         }
+         else
+         {
+            push @$header, "-Content_Encoding", "gzip";
+         }
+      }
+   }
 
    # Check that IO::Zlib is available
    if ($compress)
@@ -213,32 +256,28 @@ sub _startCompression
       $compress &&= $global_can_compress;
    }
 
-   if ($compress)
+   return $compress;
+}
+
+sub _startCompression
+{
+   my $self = shift;
+   my $header = shift;
+
+   $my::Zlibwrapper::use_fh ||= \*STDOUT;
+   
+   my $filehandle = my::Zlibwrapper->new($my::Zlibwrapper::use_fh, "wb");
+   if (!$filehandle)
    {
-      # Success!!  Set up the compressed output stream
-
-      $my::Zlibwrapper::use_fh ||= \*STDOUT;
-
-      my $filehandle = my::Zlibwrapper->new($my::Zlibwrapper::use_fh, "wb");
-      if (!$filehandle)
-      {
-         carp "Failed to open Zlib output, reverting to uncompressed output";
-         return undef;
-      }
-
-      # All output from here on goes to our new filehandle
-      select $filehandle;
-      $self->{'.zlib_fh'} = $filehandle;  # needed for destructor
-
-      # Stick the encoding message into the header.  Be sure not to
-      # overwrite an existing encoding message.
-      if ($$R_header !~ /^Content-Encoding:.*\bgzip\b/mi)
-      {
-         $$R_header =~ s/^(?:Content-Encoding:\s*)/gzip, /mio or
-             $$R_header = "Content-Encoding: gzip\n" . $$R_header;
-      }
-      tied(${$self->{'.zlib_fh'}})->{pending_header} = $$R_header;
+      carp "Failed to open Zlib output, reverting to uncompressed output";
+      return undef;
    }
+   
+   # All output from here on goes to our new filehandle
+   select $filehandle;
+   $self->{'.zlib_fh'} = $filehandle;  # needed for destructor
+   
+   tied(${$self->{'.zlib_fh'}})->{pending_header} = $header;
 
    return $self;
 }

@@ -52,7 +52,7 @@ my $cmd = "$^X -Iblib/arch -Iblib/lib testhelp '$compare'";
 # no compression
 {
    my $out = `$cmd`;
-   ok($out !~ s/^Content-Encoding: gzip\n//s && $out !~ s/^(Content-Encoding:\s*)gzip, /$1/m, "CGI template (header encoding text)");
+   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//s && $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/m, "CGI template (header encoding text)");
    is($out, $compareheader.$compare, "CGI template (body test)");
 }
 
@@ -61,7 +61,7 @@ my $cmd = "$^X -Iblib/arch -Iblib/lib testhelp '$compare'";
    local $ENV{HTTP_ACCEPT_ENCODING} = "gzip";
 
    my $out = `$cmd`;
-   ok($out =~ s/^Content-Encoding: gzip\n//s || $out =~ s/^(Content-Encoding:\s*)gzip, /$1/m, "Gzipped CGI template (header encoding text)");
+   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//s || $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/m, "Gzipped CGI template (header encoding text)");
    is($out, $compareheader.$zcompare, "Gzipped CGI template (body test)");
 }
 

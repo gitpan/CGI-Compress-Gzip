@@ -1,9 +1,10 @@
 CGI::Compress::Gzip
 
-WARNING: as of v0.02 this is still alpha-quality code.  While it seems
+WARNING: as of v0.03 this is still alpha-quality code.  While it seems
 to run just fine for simple standalone scripts in both perl 5.6.0 and
-5.8.0, it breaks under mod_perl.  Hopefully I can remove this message
-soon.  :-)
+5.8.0, it breaks under mod_perl.  0.03 is improved over 0.02 in that
+the mod_perl headers work, but the gzip filter is still broken.
+Hopefully I can remove this message soon.  :-)
 
 This module is maintained by Clotho Advanced Media, www.clotho.com.
 Contact us at cpan@clotho.com.

@@ -1,3 +1,12 @@
+2003-02-06 00:15  chris
+
+	* Gzip.pm, README, test.pl: 0.03 Header tweaks towards mod_perl
+	functionality
+
+2003-02-05 23:31  chris
+
+	* Gzip.pm: Work on the compression decision
+
 2003-02-05 22:36  chris
 
 	* README: v0.02, updated README
