@@ -1,3 +1,8 @@
+2004-01-02 15:12  chris
+
+	* README, lib/CGI/Compress/Gzip.pm: v0.16 Clean up documentation
+	Fix some URL errors
+
 2003-12-30 11:48  chris
 
 	* README: Fix README
@@ -101,10 +106,10 @@
 2003-01-20 14:14  chris
 
 	* COPYRIGHT, Gzip.pm, MANIFEST, Makefile.PL, README, test.pl:
-	Initial import
+	Initial revision
 
 2003-01-20 14:14  chris
 
 	* COPYRIGHT, Gzip.pm, MANIFEST, Makefile.PL, README, test.pl:
-	Initial revision
+	Initial import
 

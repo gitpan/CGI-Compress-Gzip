@@ -82,6 +82,23 @@ KNOWN ISSUES
 * This module has been observed to fail on Solaris.  The error is very
   strange and may be Compress::Zlib's fault.  In a nutshell,
   Compress::Zlib gets into infinite recursion in its AUTOLOAD
-  function.  I don't know the cause yet...
+  function.  I don't think it's this module's fault
 
+* Under Apache::Registry, global variables may not go out of scope in
+  time.  This may causes timing bugs, since this module makes use of
+  the DESTROY() method.  To avoid this issue, make sure your CGI
+  object is stored in a scoped variable.
 
+    --- BROKEN CODE ---
+   use CGI::Compress::Gzip;
+   $q = CGI::Compress::Gzip->new;
+   print $q->header;
+   print "Hello, world\n";
+
+    --- WORKAROUND CODE ---
+   use CGI::Compress::Gzip;
+   do {
+     my $q = CGI::Compress::Gzip->new;
+     print $q->header;
+     print "Hello, world\n";
+   }

@@ -34,9 +34,9 @@ into your project and to assist you with any problems.
 
 =head1 DESCRIPTION
 
-[This is still beta code, but we use it in our production Linux
-environments.  See README for caveats.  I've received reports that it
-fails under Windows and Solaris.  Help!]
+[This is beta code, but we use it in our production Linux
+environments.  See the BUGS section below for caveats.  I've received
+reports that it fails under Windows.  Help!]
 
 CGI::Compress::Gzip extends the CGI class to auto-detect whether the
 client browser wants compressed output and, if so and if the script
@@ -55,16 +55,14 @@ Content-Type.
 At the time that a header is requested, CGI::Compress::Gzip checks the
 HTTP_ACCEPT_ENCODING environment variable (passed by Apache).  If this
 variable includes the flag "gzip" and the outgoing mime-type is
-"text/*", then gzipped output is prefered.  The header is altered to
-add the "Content-Encoding: gzip" flag which indicates that compression
-is turned on.
+"text/*", then gzipped output is prefered.  [the default mime-type
+selection of text/* can be changed by subclasses -- see below]  The
+header is altered to add the "Content-Encoding: gzip" flag which
+indicates that compression is turned on.
 
 Naturally, it is crucial that the CGI application output nothing
 before the header is printed.  If this is violated, things will go
 badly.
-
-Note: the default mime-type selection of text/* can be changed by
-subclasses.  See below.
 
 =head2 Compression
 
@@ -81,10 +79,10 @@ compression.  This is more wasteful of RAM, but it is the only
 solution I've found (and it is one shared by the Apache::* compression
 modules).
 
-[debugging note: if you set B<$CGI::Compress::Gzip::global_give_reason>
+Debugging note: if you set B<$CGI::Compress::Gzip::global_give_reason>
 to a true value, then this module will add an HTTP header entry called
 B<X-non-gzip-reason> with an explanation of why it chose not to gzip
-the output stream.]
+the output stream.
 
 =cut
 
@@ -95,7 +93,7 @@ use Carp;
 use CGI;
 
 our @ISA = qw(CGI);
-our $VERSION = '0.15';
+our $VERSION = '0.16';
 
 # Package globals
 
@@ -581,11 +579,40 @@ sub CLOSE
 1;
 __END__
 
+=head1 BUGS
+
+=head2 Windows
+
+This module fails tests specifically under Windows in ways I do not
+understand, as reported by CPANPLUS testers.  There is some problem
+with my IO::Zlib tests.  If anyone knows about IO::Zlib failures or
+caveats on Windows, please let me know.  It *might* be related to
+binmode, but I have not tested this theory.
+
+=head2 Apache::Registry
+
+Under Apache::Registry, global variables may not go out of scope in
+time.  This may causes timing bugs, since this module makes use of
+the DESTROY() method.  To avoid this issue, make sure your CGI
+object is stored in a scoped variable.
+
+   # BROKEN CODE
+   use CGI::Compress::Gzip;
+   $q = CGI::Compress::Gzip->new;
+   print $q->header;
+   print "Hello, world\n";
+   
+   # WORKAROUND CODE
+   use CGI::Compress::Gzip;
+   do {
+     my $q = CGI::Compress::Gzip->new;
+     print $q->header;
+     print "Hello, world\n";
+   }
+
 =head1 TO DO
 
 * Fix under Windows (MinGW) -- Help please!
-
-* Fix under Solaris -- Help please!
 
 * test in FastCGI environments -- Help please!
 
@@ -593,12 +620,12 @@ __END__
 
 * Better detection of when output is not a real file handle
 
-* Documentation and cleanup of the helper class
-
 =head1 SEE ALSO
 
-CGI::Compress::Gzip depends on CGI and IO::Zlib.  Related functionality is
-available from Apache::Compress or Apache::GzipChain.
+CGI::Compress::Gzip depends on CGI and IO::Zlib.  Similar
+functionality is available from mod_gzip, Apache::Compress or
+Apache::GzipChain, however all of those require changes to the
+webserver's configuration.
 
 =head1 AUTHOR
 
