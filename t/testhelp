@@ -15,6 +15,12 @@ elsif ($ARGV[0] && $ARGV[0] eq "charset")
    print $cgi->header("text/html; charset=UTF-8");
    print @ARGV;
 }
+elsif ($ARGV[0] && $ARGV[0] eq "type")
+{
+   shift;
+   print $cgi->header(-Type => "foo/bar");
+   print @ARGV;
+}
 elsif ($ARGV[0] && $ARGV[0] eq "fh")
 {
    shift;

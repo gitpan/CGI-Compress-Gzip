@@ -1,13 +1,18 @@
+2004-11-30 20:55  chris
+
+	* lib/CGI/Compress/Gzip.pm, t/gzip.t, t/testhelp:
+	  v0.18 Support more of the standard CGI->header() arguments
+
 2004-01-08 13:24  chris
 
 	* README, lib/CGI/Compress/Gzip.pm, t/gzip.t, t/testhelp: v0.17 *
-	Support -type CGI header flag * Add caveat about explicit use of
-	filehandles
+	  Support -type CGI header flag * Add caveat about explicit use of
+	  filehandles
 
 2004-01-02 15:12  chris
 
 	* README, lib/CGI/Compress/Gzip.pm: v0.16 Clean up documentation
-	Fix some URL errors
+	  Fix some URL errors
 
 2003-12-30 11:48  chris
 
@@ -16,26 +21,26 @@
 2003-12-30 11:44  chris
 
 	* index.html, lib/CGI/Compress/Gzip.pm, t/gzip.t, t/testhelp: v0.15
-	* Fix bug parsing CGI header() arguments * Add
-	programmer-configurable mim-type selection
+	  * Fix bug parsing CGI header() arguments * Add
+	  programmer-configurable mim-type selection
 
 2003-09-16 12:49  chris
 
 	* Build.PL, COPYRIGHT, Gzip.pm, LICENSE, MANIFEST, Makefile.PL,
-	README, index.html, test.pl, testhelp, lib/CGI/Compress/Gzip.pm,
-	t/gzip.t, t/testhelp: v0.14 Update for new build and license
-	infrastructure
+	  README, index.html, test.pl, testhelp, lib/CGI/Compress/Gzip.pm,
+	  t/gzip.t, t/testhelp: v0.14 Update for new build and license
+	  infrastructure
 
 2003-08-28 11:07  chris
 
 	* Gzip.pm, MANIFEST, README, test.pl, testhelp: v0.13 Add support
-	for CGI redirect() calls (if HTTP Status is not 200, content should
-	not be compressed).
+	  for CGI redirect() calls (if HTTP Status is not 200, content
+	  should not be compressed).
 
 2003-08-22 17:50  tasc
 
 	* Gzip.pm: v0.12 - Fix bug where headers were altered even when
-	compression was inappropriate.
+	  compression was inappropriate.
 
 2003-03-31 14:01  chris
 
@@ -44,12 +49,12 @@
 2003-03-14 10:06  chris
 
 	* Gzip.pm, README: v0.11 Handle default content-type of text/html
-	Add helpful diagnostic HTTP headers, if requested
+	  Add helpful diagnostic HTTP headers, if requested
 
 2003-03-13 21:58  chris
 
 	* Gzip.pm, README: v0.10 Fix for mod_perl -- use in-memory
-	compression
+	  compression
 
 2003-02-12 13:05  chris
 
@@ -58,7 +63,7 @@
 2003-02-12 08:51  chris
 
 	* Gzip.pm, README, test.pl: v0.04 Acknowledge Windows failure
-	Disable for mod_perl Case-insensitive content-encoding tests
+	  Disable for mod_perl Case-insensitive content-encoding tests
 
 2003-02-08 00:34  chris
 
@@ -67,7 +72,7 @@
 2003-02-06 00:15  chris
 
 	* Gzip.pm, README, test.pl: 0.03 Header tweaks towards mod_perl
-	functionality
+	  functionality
 
 2003-02-05 23:31  chris
 
@@ -80,12 +85,12 @@
 2003-02-05 22:34  chris
 
 	* Gzip.pm, MANIFEST, test.pl, testhelp: Substantial overhaul.  Now
-	it works under 5.6.0, but still not under mod_perl.
+	  it works under 5.6.0, but still not under mod_perl.
 
 2003-01-21 13:02  chris
 
 	* Gzip.pm, Makefile.PL, README, test.pl: Change name to
-	CGI::Compress::Gzip
+	  CGI::Compress::Gzip
 
 2003-01-21 09:27  chris
 
@@ -102,20 +107,20 @@
 2003-01-20 14:51  chris
 
 	* Gzip.pm: Added comments Put some global args into the Zlibwrapper
-	object
+	  object
 
 2003-01-20 14:27  chris
 
 	* Gzip.pm: Set version to 0.01 (earlier was wrong) Remove debugging
-	comments
+	  comments
 
 2003-01-20 14:14  chris
 
 	* COPYRIGHT, Gzip.pm, MANIFEST, Makefile.PL, README, test.pl:
-	Initial import
+	  Initial import
 
 2003-01-20 14:14  chris
 
 	* COPYRIGHT, Gzip.pm, MANIFEST, Makefile.PL, README, test.pl:
-	Initial revision
+	  Initial revision
 

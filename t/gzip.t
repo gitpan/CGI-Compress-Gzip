@@ -8,7 +8,7 @@ $SIG{__DIE__} = \&Carp::cluck;
 
 BEGIN
 { 
-   use Test::More tests => 14;
+   use Test::More tests => 16;
    use_ok("CGI::Compress::Gzip");
 }
 
@@ -18,6 +18,7 @@ my $redir = "http://www.foo.com/";
 # Get CGI header for comparison
 my $compareheader = CGI->new("")->header();
 my $compareheader2 = CGI->new("")->header(-Content_Type => "text/html; charset=UTF-8");
+my $compareheader3 = CGI->new("")->header(-Type => "foo/bar");
 my $compareredir = CGI->new("")->redirect($redir);
 
 
@@ -54,6 +55,7 @@ is ($testbuf, $compare, "Compress::Zlib double-check");
 my $basecmd = "$^X -Iblib/arch -Iblib/lib t/testhelp";
 my $cmd = "$basecmd '$compare'";
 my $cmd2 = "$basecmd charset '$compare'";
+my $cmd3 = "$basecmd type '$compare'";
 my $redircmd = "$basecmd redirect '$redir'";
 my $fhcmd = "$basecmd fh '$compare'";
 
@@ -87,6 +89,18 @@ my $fhcmd = "$basecmd fh '$compare'";
       "Gzipped CGI template with charset (header encoding text)");
    is($out, $compareheader2.$zcompare, 
       "Gzipped CGI template with charset (body test)");
+}
+
+# CGI with arguments
+{
+   local $ENV{HTTP_ACCEPT_ENCODING} = "gzip";
+
+   my $out = `$cmd3`;
+   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//si &&
+      $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/mi,
+      "Un-Gzipped with -Type flag (argument processing text)");
+   is($out, $compareheader3.$compare, 
+      "Un-Gzipped with -Type flag (body test)");
 }
 
 # CGI redirection and compression

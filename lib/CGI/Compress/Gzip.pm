@@ -93,7 +93,7 @@ use Carp;
 use CGI;
 
 our @ISA = qw(CGI);
-our $VERSION = '0.17';
+our $VERSION = '0.18';
 
 # Package globals
 
@@ -301,11 +301,11 @@ sub _canCompress
       for (my $i=0; $i < @newheader; $i++)
       {
          next if (!defined $newheader[$i]);
-         if ($newheader[$i] =~ /^-?(?:Content[-_]Type)$/i)
+         if ($newheader[$i] =~ /^-?(?:Content[-_]Type|Type)$/i)
          {
             $content_type = $newheader[++$i];
          }
-         elsif ($newheader[$i] =~ /^-?(?:Content[-_]Type): (.*)$/i)
+         elsif ($newheader[$i] =~ /^-?(?:Content[-_]Type|Type): (.*)$/i)
          {
             $content_type = $1;
          }
@@ -629,7 +629,7 @@ C<print> without a filehandle argument.
    print "Hello, world\n";
 
 Future versions may steal away STDOUT and replace it with the
-compression filehandle, but that seemed to risky for this version.
+compression filehandle, but that seemed too risky for this version.
 
 =head1 SEE ALSO
 
@@ -646,6 +646,11 @@ Clotho Advanced Media, I<cpan@clotho.com>
 
 Clotho greatly appeciates the assistance and feedback the community
 has extended to help refine this module.
+
+Thanks to Rhesa Rozendaal who noticed the -Type omission in v0.17.
+
+Thanks to Laga Mahesa who did some Windows testing and
+expirimentation.
 
 Thanks to Slaven Rezic who 1) found several header handling bugs, 2)
 discovered the Apache::Registry and Filehandle caveats, and 3)
