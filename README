@@ -1,8 +1,9 @@
 CGI::Compress::Gzip
 
-WARNING: as of v0.01 this is still alpha-quality code.  While it seems
-to run just fine for simple standalone scripts, it breaks under
-mod_perl.  Hopefully I can remove this message soon.  :-)
+WARNING: as of v0.02 this is still alpha-quality code.  While it seems
+to run just fine for simple standalone scripts in both perl 5.6.0 and
+5.8.0, it breaks under mod_perl.  Hopefully I can remove this message
+soon.  :-)
 
 This module is maintained by Clotho Advanced Media, www.clotho.com.
 Contact us at cpan@clotho.com.

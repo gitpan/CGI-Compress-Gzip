@@ -1,3 +1,12 @@
+2003-02-05 22:36  chris
+
+	* README: v0.02, updated README
+
+2003-02-05 22:34  chris
+
+	* Gzip.pm, MANIFEST, test.pl, testhelp: Substantial overhaul.  Now
+	it works under 5.6.0, but still not under mod_perl.
+
 2003-01-21 13:02  chris
 
 	* Gzip.pm, Makefile.PL, README, test.pl: Change name to

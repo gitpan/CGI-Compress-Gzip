@@ -1,6 +1,6 @@
 BEGIN
 { 
-   use Test::More tests => 9;
+   use Test::More tests => 8;
    use_ok(CGI::Compress::Gzip);
 }
 
@@ -9,16 +9,14 @@ use warnings;
 
 use Carp;
 $SIG{__WARN__} = \&Carp::confess;
-$SIG{__DIE__} = \&Carp::confess;
+$SIG{__DIE__} = \&Carp::cluck;
 
-my $compare = "Hello World!\n";  # expected output
+my $compare = "Hello World!";  # expected output
 
 # Get CGI header for comparison
 my $compareheader = CGI->new("")->header();
 
 
-eval "use IO::String";
-my $hasIO = $@ ? 0 : 1;
 eval "use IO::Zlib; use Compress::Zlib";
 my $hasZlib = $@ ? 0 : 1;
 
@@ -35,68 +33,34 @@ my $testbuf = $zcompare;
 $testbuf = Compress::Zlib::memGunzip($testbuf);
 is ($testbuf, $compare, "Compress::Zlib double-check");
 {
-   open FILE, ">$testfile" or die "Can't write a temp file";
-   select FILE;
-   my $fh = IO::Zlib->new(eval "\\*".select, "wb");
-   select $fh;
-   print $compare;
+   local *FILE1;
+   open FILE1, ">$testfile" or die "Can't write a temp file";
+   local *STDOUT = *FILE1;
+   my $fh = IO::Zlib->new(\*FILE1, "wb");
+   print $fh $compare;
    close $fh;
-   close FILE;
-   select STDOUT;
+   close FILE1;
 
-   open FILE, "<$testfile" or die "Can't read temp file";
-   my $out = join("", <FILE>);
-   close(FILE);
+   open FILE1, "<$testfile" or die "Can't read temp file";
+   my $out = join("", <FILE1>);
+   close(FILE1);
    is($out, $zcompare, "IO::Zlib test");
 }
 
+my $cmd = "$^X -Iblib/arch -Iblib/lib testhelp '$compare'";
+
 # no compression
-
-SKIP: {
-   my $tests = 2;
-   skip "IO::String module is not installed", $tests if (!$hasIO);
-
-   my $cgi = CGI::Compress::Gzip->new("");
-   ok($cgi, "Constructor");
-
-   my $out;
-   my $fh = IO::String->new($out);
-   select $fh;
-   print $cgi->header();
-   print $compare;
-   $fh->close();
-   select STDOUT;
-   is($out, $compareheader.$compare, "CGI template");
+{
+   my $out = `$cmd`;
+   ok($out !~ s/^Content-Encoding: gzip\n//s && $out !~ s/^(Content-Encoding:\s*)gzip, /$1/m, "CGI template (header encoding text)");
+   is($out, $compareheader.$compare, "CGI template (body test)");
 }
 
 # CGI and compression
+{
+   local $ENV{HTTP_ACCEPT_ENCODING} = "gzip";
 
-
-SKIP: {
-   my $tests = 3;
-   skip "IO::String module is not installed", $tests if (!$hasIO);
-   skip "IO::Zlib module is not installed", $tests if (!$hasZlib);
-
-   # Turn on compression
-   ok(CGI::Compress::Gzip->useCompression(1), "Turn on compression");
-
-   $ENV{HTTP_ACCEPT_ENCODING} = "gzip";
-
-   my $out;
-   open FILE, ">$testfile" or die "Can't write a temp file";
-   select FILE;
-   {
-      # Wrap in a block so the $cgi destructor is called
-      my $cgi = CGI::Compress::Gzip->new("");
-      print $cgi->header();
-      print $compare;
-   }
-   close(FILE);
-   select STDOUT;
-
-   open FILE, "<$testfile" or die "Can't read temp file";
-   $out = join("", <FILE>);
-   close(FILE);
+   my $out = `$cmd`;
    ok($out =~ s/^Content-Encoding: gzip\n//s || $out =~ s/^(Content-Encoding:\s*)gzip, /$1/m, "Gzipped CGI template (header encoding text)");
    is($out, $compareheader.$zcompare, "Gzipped CGI template (body test)");
 }

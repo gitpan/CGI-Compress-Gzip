@@ -1,0 +1,6 @@
+use strict;
+use CGI::Compress::Gzip;
+
+my $cgi = new CGI::Compress::Gzip("");
+print $cgi->header();
+print @ARGV;

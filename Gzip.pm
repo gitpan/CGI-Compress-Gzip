@@ -1,5 +1,10 @@
 package CGI::Compress::Gzip;
 
+
+use Data::Dumper;  # debugging...
+
+
+
 =head1 NAME
 
 CGI::Compress::Gzip - CGI with automatically compressed output
@@ -14,23 +19,25 @@ CGI::Compress::Gzip - CGI with automatically compressed output
 
 =head1 DESCRIPTION
 
-CGI::Compress::Gzip extends the CGI class to auto-detect whether the client
-browser wants compressed output and, if so and if the script chooses
-HTML output, apply gzip compression on any output.  This module is
-intended to be a drop-in replacement for CGI.pm in a typical scripting
-environment.
+CGI::Compress::Gzip extends the CGI class to auto-detect whether the
+client browser wants compressed output and, if so and if the script
+chooses HTML output, apply gzip compression on any content header for
+STDOUT.  This module is intended to be a drop-in replacement for
+CGI.pm in a typical scripting environment.
 
 Apache mod_perl users may wish to consider the Apache::Compress or
 Apache::GzipChain modules, which allow more transparent output
-compression than this module can provide.
+compression than this module can provide.  However, as of this writing
+those modules are more aggressive about compressing, regardless of
+Content-Type.
 
 =head2 Headers
 
 At the time that a header is requested, CGI::Compress::Gzip checks the
 HTTP_ACCEPT_ENCODING environment variable (passed by Apache).  If this
-variable includes the flag "gzip" and the mime-type is "text/html",
-then gzipped output is prefered.  The header is altered to add the
-"Content-Encoding: gzip" flag compression is turned on.
+variable includes the flag "gzip" and the outgoing mime-type is
+"text/html", then gzipped output is prefered.  The header is altered
+to add the "Content-Encoding: gzip" flag compression is turned on.
 
 Naturally, it is crucial that the CGI application output nothing
 before the header is printed.  If this is violated, things will go
@@ -39,11 +46,10 @@ badly.
 =head2 Compression
 
 When the header is created, this module sets up a new filehandle to
-accept data.  The Perl select() function is used to direct all print()
-calls which lacka filehandle argument (i.e. those which would normally
-go to STDOUT) to this filehandle.  The new filehandle passes data
-verbatim until it detects the end of the CGI header.  At that time, it
-switches over to Gzip output for the remainder of the CGI run.
+accept data.  STDOUT is redirected through that filehandle.  The new
+filehandle passes data verbatim until it detects the end of the CGI
+header.  At that time, it switches over to Gzip output for the
+remainder of the CGI run.
 
 =cut
 
@@ -54,7 +60,7 @@ use Carp;
 use CGI;
 
 our @ISA = qw(CGI);
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 # Package globals
 
@@ -83,11 +89,8 @@ sub new
 {
    my $pkg = shift;
 
-   if ($my::Zlibwrapper::old_fh)
-   {
-      select $my::Zlibwrapper::old_fh;
-      $my::Zlibwrapper::old_fh = undef;
-   }
+   $my::Zlibwrapper::use_fh = undef;
+   select STDOUT;
    my $self = $pkg->SUPER::new(@_);
    return $self;
 }
@@ -120,6 +123,26 @@ sub useCompression
 
 =cut
 
+#==============================
+
+=item useFileHandle FILEHANDLE
+
+Manually set the output filehandle.  Because of limitations of libz,
+this MUST be a real filehandle (with valid results from fileno()) and
+not a pseudo filehandle like IO::String.
+
+If this is not set, STDOUT is used.
+
+=cut
+
+sub useFileHandle
+{
+   my $self = shift;
+   my $fh = shift;
+
+   $my::Zlibwrapper::use_fh = $fh;
+   return $self;
+}
 #==============================
 
 =item header HEADER-ARGS
@@ -194,13 +217,9 @@ sub _startCompression
    {
       # Success!!  Set up the compressed output stream
 
-      my $oldfh = $my::Zlibwrapper::old_fh = select();
-      if (!ref($oldfh))
-      {
-         $oldfh = eval "\\*".$my::Zlibwrapper::old_fh;
-      }
+      $my::Zlibwrapper::use_fh ||= \*STDOUT;
 
-      my $filehandle = my::Zlibwrapper->new($oldfh, "wb");
+      my $filehandle = my::Zlibwrapper->new($my::Zlibwrapper::use_fh, "wb");
       if (!$filehandle)
       {
          carp "Failed to open Zlib output, reverting to uncompressed output";
@@ -269,8 +288,7 @@ destroyed).
 
 our @ISA = qw(IO::Zlib);
 
-our $old_fh = undef; # storage in the case of persistent scripts
-                           # (mod_perl, etc)
+our $use_fh;
 
 sub OPEN
 {
@@ -307,9 +325,8 @@ sub WRITE
       }
       if ($buf =~ s/^\Q$header//s)
       {
-         my $fh = $old_fh || \*STDOUT;
          no strict qw(refs);
-         if (print $fh $header)
+         if (print $use_fh $header)
          {
             $bytes += length($header);
             $length -= length($header);
@@ -342,14 +359,19 @@ sub WRITE
 
 sub CLOSE
 {
+   # Debugging:
+   #$SIG{__DIE__} = sub {print STDERR "die: ".join("", @_)};
+
    my $self = shift;
 
-   if ($old_fh)
+   $use_fh = undef;
+   select STDOUT;
+   my $result = $self->SUPER::CLOSE();
+   if (!$result)
    {
-      select $old_fh;
-      $old_fh = undef;
+      &Carp::confess("Failed to close gzip $!");
    }
-   return $self->SUPER::CLOSE();
+   return $result;
 }
 
 1;
