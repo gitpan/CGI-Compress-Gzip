@@ -1,12 +1,12 @@
 CGI::Compress::Gzip
 
-WARNING: as of v0.04 this is still alpha-quality code.  While it seems
-to run just fine for simple standalone scripts in both perl 5.6.0 and
-5.8.0, it breaks under mod_perl, so the module turns itself off if it
-detects mod_perl.  0.04 just fixes some minor issues.  0.03 was an
-improvement over 0.02 in that the mod_perl headers work, but the gzip
-filter is still broken.  Hopefully I can remove this message soon.
-:-)
+WARNING: as of v0.10 this is still alpha-quality code, but it's
+rapidly approaching beta.  It runs just fine for simple standalone
+scripts in perl 5.6.0, 5.6.1 and 5.8.0 (linux and darwin), and it
+works under mod_perl in 5.6.0 (darwin).  0.10 finally got mod_perl
+working.  0.04 just fixed some minor issues.  0.03 was an improvement
+over 0.02 in that the mod_perl headers work, but the gzip filter was
+still broken.
 
 KNOWN ISSUE: This module fails tests specifically under Windows in
 ways I do not understand, as reported by CPANPLUS testers.  There is
@@ -18,15 +18,15 @@ Contact us at cpan@clotho.com.
 
 This module extends the CGI infrastructure to compresses output,
 whenever possible.  It uses IO::Zlib (a filehandle wrapper around the
-C zlib library).  If this is missing, the functionality degrades to
-the typical CGI behavior.  The programmer can selectively enable or
-disable the compression functionality at will.  This module does not
-rely on any particular server setup.  It should work anywhere that
-CGI.pm works.
+C zlib library).  If this is missing, the functionality degrades
+gracefully to the typical CGI behavior.  The programmer can
+selectively enable or disable the compression functionality at will.
+This module does not rely on any particular server setup.  It should
+work anywhere that CGI.pm works.
 
 Apache mod_perl users may prefer the more straightforward
 implementation offered by the Apache::Compress or Apache::GzipChain
-modules.
+modules, although those offer less control to the programmer.
 
 Install via the usual:
   perl Makefile.PL

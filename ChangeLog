@@ -1,3 +1,12 @@
+2003-03-13 21:58  chris
+
+	* Gzip.pm, README: v0.10 Fix for mod_perl -- use in-memory
+	compression
+
+2003-02-12 13:05  chris
+
+	* Gzip.pm: Rename the wrapper class to CGI::Compress::Gzip::wrapper
+
 2003-02-12 08:51  chris
 
 	* Gzip.pm, README, test.pl: v0.04 Acknowledge Windows failure
