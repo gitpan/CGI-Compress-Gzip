@@ -1,25 +1,20 @@
 CGI::Compress::Gzip
 
-WARNING: as of v0.10 this is still alpha-quality code, but it's
-rapidly approaching beta.  It runs just fine for simple standalone
-scripts in perl 5.6.0, 5.6.1 and 5.8.0 (linux and darwin), and it
-works under mod_perl in 5.6.0 (darwin).  0.10 finally got mod_perl
-working.  0.04 just fixed some minor issues.  0.03 was an improvement
-over 0.02 in that the mod_perl headers work, but the gzip filter was
-still broken.
-
-KNOWN ISSUE: This module fails tests specifically under Windows in
-ways I do not understand, as reported by CPANPLUS testers.  There is
-some problem with my IO::Zlib tests.  If anyone knows about IO::Zlib
-failures or caveats on Windows, please let me know.
+WARNING: as of v0.11 this is still alpha-quality code, but it's nearly
+beta.  It runs just fine for simple standalone scripts in perl 5.6.0,
+5.6.1 and 5.8.0 (linux and darwin), and it works under mod_perl in
+5.6.0 (darwin).  0.11 fixed a content-type bug and added handy
+diagnostics.  0.10 finally got mod_perl working.  0.04 just fixed some
+minor issues.  0.03 was an improvement over 0.02 in that the mod_perl
+headers work, but the gzip filter was still broken.
 
 This module is maintained by Clotho Advanced Media, www.clotho.com.
 Contact us at cpan@clotho.com.
 
-This module extends the CGI infrastructure to compresses output,
-whenever possible.  It uses IO::Zlib (a filehandle wrapper around the
-C zlib library).  If this is missing, the functionality degrades
-gracefully to the typical CGI behavior.  The programmer can
+CGI::Compress::Gzip extends the CGI infrastructure to compresses
+output, whenever possible.  It uses IO::Zlib (a filehandle wrapper
+around the C zlib library).  If this is missing, the functionality
+degrades gracefully to the typical CGI behavior.  The programmer can
 selectively enable or disable the compression functionality at will.
 This module does not rely on any particular server setup.  It should
 work anywhere that CGI.pm works.
@@ -36,3 +31,14 @@ Install via the usual:
 
 This module is released under the GNU Public License v2.  See
 "COPYING" for details.
+
+KNOWN ISSUES: 
+
+* This module fails tests specifically under Windows in ways I do not
+  understand, as reported by CPANPLUS testers.  There is some problem
+  with my IO::Zlib tests.  If anyone knows about IO::Zlib failures or
+  caveats on Windows, please let me know.
+* This module has been observer to fail on Solaris.  The error is very
+  strange and may be Compress::Zlib's fault.  I don't know yet...
+
+

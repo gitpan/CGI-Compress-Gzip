@@ -6,11 +6,11 @@ CGI::Compress::Gzip - CGI with automatically compressed output
 
 =head1 SYNOPSIS
 
-  use CGI::Compress::Gzip;
-
-  my $cgi = new CGI::Compress::Gzip;
-  print $cgi->header();
-  print "<html> ...";
+   use CGI::Compress::Gzip;
+  
+   my $cgi = new CGI::Compress::Gzip;
+   print $cgi->header();
+   print "<html> ...";
 
 =head1 DESCRIPTION
 
@@ -58,6 +58,11 @@ compression.  This is more wasteful of RAM, but it is the only
 solution I've found (and it is one shared by the Apache::* compression
 modules).
 
+[debugging note: if you set B<$CGI::Compress::Gzip::global_give_reason>
+to a true value, then this module will add an HTTP header entry called
+B<X-non-gzip-reason> with an explanation of why it chose not to gzip
+the output stream.]
+
 =cut
 
 require 5.005_62;
@@ -67,12 +72,16 @@ use Carp;
 use CGI;
 
 our @ISA = qw(CGI);
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 # Package globals
 
 our $global_use_compression = 1; # user-settable
 our $global_can_compress = undef; # 1 = yes, 0 = no, undef = don't know yet
+
+# If true, add an outgoing HTTP header explaining why we are not
+# compressing if gzip turns itself off.
+our $global_give_reason = 0;
 
 #==============================
 
@@ -188,7 +197,7 @@ sub header
 #==============================
 
 # Enable the compression filehandle if:
-#  - The output is text/*
+#  - The output is text/* (default is text/html if unspecified)
 #  - The programmer wants compression, indicated by the useCompression()
 #    method
 #  - Client wants compression, indicated by the Accepted-Encoding HTTP field
@@ -200,35 +209,38 @@ sub _canCompress
    my $header = shift;  # array ref
 
    my $compress = 1;
+   my $reason = "";
 
    # Check programmer preference
    $compress &&= $global_use_compression;
-   #print STDERR "global\n" if ($compress);
+   $reason ||= "programmer request" if (!$compress);
 
    # Check that browser supports gzip
    my $acc = $ENV{HTTP_ACCEPT_ENCODING};
    $compress &&= ($acc && $acc =~ /\bgzip\b/i);
-   #print STDERR "accept\n" if ($compress);
+   $reason ||= "user agent does not want gzip" if (!$compress);
 
    # Check that the output will be HTML
    $compress &&= $header && ref($header);
-   #print STDERR "header\n" if ($compress);
+   $reason ||= "no header to check" if (!$compress);
 
+   my $content_type = "";
    if ($compress)
    {
       my $encodingIndex = undef;
       for (my $i=0; $i < @$header; $i++)
       {
-         if ($i == 0 || 
-             ($header->[$i] =~ /^-?Content[-_]Type$/i && ++$i) ||
-             $header->[$i] =~ /^-?Content[-_]Type: $/i)
+         if ($i == 0 && $header->[$i] =~ /^[a-z]/)
          {
-            if ($header->[$i] !~ /\btext\/\w+/)
-            {
-               # Not text output
-               $compress = 0;
-               last;
-            }
+            $content_type = $header->[$i];
+         }
+         elsif ($header->[$i] =~ /^-?Content[-_]Type$/i)
+         {
+            $content_type = $header->[++$i];
+         }
+         elsif ($header->[$i] =~ /^-?Content[-_]Type: (.*)$/i)
+         {
+            $content_type = $1;
          }
          elsif (($header->[$i] =~ /^-?Content[-_]Encoding$/i && ++$i) ||
              $header->[$i] =~ /^-?Content[-_]Encoding: $/i)
@@ -245,6 +257,7 @@ sub _canCompress
             }
          }
       }
+
       if ($compress)
       {
          if (defined $encodingIndex)
@@ -258,7 +271,14 @@ sub _canCompress
          }
       }
    }
-   #print STDERR "header2\n" if ($compress);
+   $reason ||= "someone already requested gzip" if (!$compress);
+
+   if ($content_type && $content_type !~ /^text\/\w+/)
+   {
+      # Not text output (note: no content-type means text/html)
+      $compress = 0;
+   }
+   $reason ||= "incompatible content-type $content_type" if (!$compress);
 
    # Check that IO::Zlib is available
    if ($compress)
@@ -271,7 +291,10 @@ sub _canCompress
       }
       $compress &&= $global_can_compress;
    }
-   #print STDERR "IO::Zlib\n" if ($compress);
+   $reason ||= "IO::Zlib not found" if (!$compress);
+
+   push @$header, "-X_non_gzip_reason", $reason 
+       if ((!$compress) && $global_give_reason);
 
    return $compress;
 }
@@ -474,7 +497,7 @@ __END__
 
 =head1 TO DO
 
-* Fix under Windows (MinGW?)  Help!  I'm a Mac/Linux guy.
+* Fix under Windows (MinGW)  Help please!
 
 * test in FastCGI environments
 
