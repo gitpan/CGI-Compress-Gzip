@@ -15,6 +15,14 @@ elsif ($ARGV[0] && $ARGV[0] eq "charset")
    print $cgi->header("text/html; charset=UTF-8");
    print @ARGV;
 }
+elsif ($ARGV[0] && $ARGV[0] eq "fh")
+{
+   shift;
+   my $fh = \*STDOUT;
+#   $cgi->useFileHandle($fh); # no difference
+   print $fh $cgi->header("text/html");
+   print $fh @ARGV;
+}
 else
 {
    print $cgi->header();

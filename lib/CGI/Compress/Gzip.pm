@@ -35,8 +35,8 @@ into your project and to assist you with any problems.
 =head1 DESCRIPTION
 
 [This is beta code, but we use it in our production Linux
-environments.  See the BUGS section below for caveats.  I've received
-reports that it fails under Windows.  Help!]
+environments.  See the CAVEATS section below for potential gotchas.
+I've received reports that it fails under Windows.  Help!]
 
 CGI::Compress::Gzip extends the CGI class to auto-detect whether the
 client browser wants compressed output and, if so and if the script
@@ -93,7 +93,7 @@ use Carp;
 use CGI;
 
 our @ISA = qw(CGI);
-our $VERSION = '0.16';
+our $VERSION = '0.17';
 
 # Package globals
 
@@ -301,11 +301,11 @@ sub _canCompress
       for (my $i=0; $i < @newheader; $i++)
       {
          next if (!defined $newheader[$i]);
-         if ($newheader[$i] =~ /^-?Content[-_]Type$/i)
+         if ($newheader[$i] =~ /^-?(?:Content[-_]Type)$/i)
          {
             $content_type = $newheader[++$i];
          }
-         elsif ($newheader[$i] =~ /^-?Content[-_]Type: (.*)$/i)
+         elsif ($newheader[$i] =~ /^-?(?:Content[-_]Type): (.*)$/i)
          {
             $content_type = $1;
          }
@@ -579,7 +579,7 @@ sub CLOSE
 1;
 __END__
 
-=head1 BUGS
+=head1 CAVEATS
 
 =head2 Windows
 
@@ -610,15 +610,26 @@ object is stored in a scoped variable.
      print "Hello, world\n";
    }
 
-=head1 TO DO
+=head2 Filehandles
 
-* Fix under Windows (MinGW) -- Help please!
+This module works by changing the default filehandle.  It does not
+change STDOUT at all.  As a consequence, your programs should call
+C<print> without a filehandle argument.
 
-* test in FastCGI environments -- Help please!
+   # BROKEN CODE
+   use CGI::Compress::Gzip;
+   my $q = CGI::Compress::Gzip->new;
+   print STDOUT $q->header;
+   print STDOUT "Hello, world\n";
+   
+   # WORKAROUND CODE
+   use CGI::Compress::Gzip;
+   my $q = CGI::Compress::Gzip->new;
+   print $q->header;
+   print "Hello, world\n";
 
-* Handle errors more gracefully in WRITE()
-
-* Better detection of when output is not a real file handle
+Future versions may steal away STDOUT and replace it with the
+compression filehandle, but that seemed to risky for this version.
 
 =head1 SEE ALSO
 
@@ -630,3 +641,21 @@ webserver's configuration.
 =head1 AUTHOR
 
 Clotho Advanced Media, I<cpan@clotho.com>
+
+=head1 THANKS
+
+Clotho greatly appeciates the assistance and feedback the community
+has extended to help refine this module.
+
+Thanks to Slaven Rezic who 1) found several header handling bugs, 2)
+discovered the Apache::Registry and Filehandle caveats, and 3)
+provided a patch incorporated into v0.17.
+
+Thanks to Jan Willamowius who found a header handling bug.
+
+Thanks to Andreas J. Koenig and brian d foy for module naming advice.
+
+=head1 HELP WANTED
+
+If you like this module, please help by testing on Windows or in a
+FastCGI environment, since I have neither available for easy testing.

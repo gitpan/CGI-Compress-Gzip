@@ -8,7 +8,7 @@ $SIG{__DIE__} = \&Carp::cluck;
 
 BEGIN
 { 
-   use Test::More tests => 12;
+   use Test::More tests => 14;
    use_ok("CGI::Compress::Gzip");
 }
 
@@ -55,6 +55,7 @@ my $basecmd = "$^X -Iblib/arch -Iblib/lib t/testhelp";
 my $cmd = "$basecmd '$compare'";
 my $cmd2 = "$basecmd charset '$compare'";
 my $redircmd = "$basecmd redirect '$redir'";
+my $fhcmd = "$basecmd fh '$compare'";
 
 # no compression
 {
@@ -97,6 +98,19 @@ my $redircmd = "$basecmd redirect '$redir'";
       $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/mi, 
       "CGI redirect (header encoding text)");
    is($out, $compareredir, "CGI redirect (body test)");
+}
+
+# redirected filehandle
+SKIP: {
+   
+   skip("Explicit use of filehandles not yet supported", 2);
+   local $ENV{HTTP_ACCEPT_ENCODING} = "gzip";
+
+   my $out = `$fhcmd`;
+   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//si ||
+      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/mi,
+      "Gzipped CGI template (header encoding text)");
+   is($out, $compareheader.$zcompare, "Gzipped CGI template (body test)");
 }
 
 unlink($testfile);

@@ -1,7 +1,7 @@
 --- #YAML:1.0
 name: CGI-Compress-Gzip
-version: 0.16
-license: restrictive
+version: 0.17
+license: gpl
 distribution_type: module
 requires:
   CGI: 2.00
@@ -13,8 +13,8 @@ conflicts: {}
 provides:
   CGI::Compress::Gzip:
     file: lib/CGI/Compress/Gzip.pm
-    version: 0.16
+    version: 0.17
   CGI::Compress::Gzip::wrapper:
     file: lib/CGI/Compress/Gzip.pm
-    version: 0.16
+    version: 0.17
 generated_by: Module::Build version 0.21

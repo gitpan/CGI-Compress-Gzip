@@ -58,10 +58,9 @@ Apache mod_perl users may prefer the more straightforward
 implementation offered by the Apache::Compress or Apache::GzipChain
 modules, although those offer less control to the programmer.
 
-WARNING: as of v0.15 this module is working on Linux and MacOSX
-but broken on Windows and Solaris (debugging help would be greatly
-appreciated on these platforms).  Specifically, I've tested that it
-runs well on the following:
+WARNING: as of v0.15 this module is working on Linux and MacOSX but
+broken on Windows (debugging help would be greatly appreciated on that
+platform).  I've personally tested that it runs well on the following:
 
                   RedHat_7.3  MacOSX_10.2.6
       perl 5.6.0                   ok          (Apple's perl)
