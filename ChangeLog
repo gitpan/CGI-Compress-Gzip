@@ -1,3 +1,12 @@
+2003-02-12 08:51  chris
+
+	* Gzip.pm, README, test.pl: v0.04 Acknowledge Windows failure
+	Disable for mod_perl Case-insensitive content-encoding tests
+
+2003-02-08 00:34  chris
+
+	* Gzip.pm: Update documentation
+
 2003-02-06 00:15  chris
 
 	* Gzip.pm, README, test.pl: 0.03 Header tweaks towards mod_perl
