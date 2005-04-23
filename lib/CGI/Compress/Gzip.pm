@@ -6,23 +6,10 @@ CGI::Compress::Gzip - CGI with automatically compressed output
 
 =head1 LICENSE
 
-Copyright Clotho Advanced Media Inc.
+Copyright 2005 Clotho Advanced Media, Inc., <cpan@clotho.com>
 
-This software is released under the GNU Public License v2 by Clotho
-Advanced Media, Inc.  See the "LICENSE" file, or visit
-http://www.clotho.com/code/GPL
-
-The definitive source of Clotho Advanced Media software is
-http://www.clotho.com/code/
-
-All of our software is also available under commercial license.  If
-the GPL does not meet the needs of your project, please contact us at
-info@clotho.com or visit the above URL.
-
-We release open source software to help the world.  We hope that you
-will enjoy this software, and we also hope and that you will hire us.
-As authors of this software, we are best able to help you integrate it
-into your project and to assist you with any problems.
+This library is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
 
 =head1 SYNOPSIS
 
@@ -104,7 +91,7 @@ use Carp;
 use CGI;
 
 our @ISA = qw(CGI);
-our $VERSION = '0.19';
+our $VERSION = '0.20';
 
 # Package globals
 
@@ -665,6 +652,8 @@ webserver's configuration.
 =head1 AUTHOR
 
 Clotho Advanced Media, I<cpan@clotho.com>
+
+Primary developer: Chris Dolan
 
 =head1 THANKS
 

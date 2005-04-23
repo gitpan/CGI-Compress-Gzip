@@ -2,7 +2,6 @@ index.html
 ChangeLog
 lib/CGI/Compress/Gzip.pm
 Build.PL
-index.html
 LICENSE
 Makefile.PL
 MANIFEST
