@@ -1,38 +1,72 @@
+#!perl -w
+
 # This is a simple script that is used by test.pl
 
+use warnings;
 use strict;
+use Carp;
+$SIG{__WARN__} = \&Carp::confess;
+$SIG{__DIE__} = \&Carp::cluck;
+
 use CGI::Compress::Gzip;
 
 my $cgi = CGI::Compress::Gzip->new("");
-if ($ARGV[0] && $ARGV[0] eq "redirect")
+my $op = shift || "";
+if ($op eq "redirect")
 {
-   shift;
    print $cgi->redirect(@ARGV);
 }
-elsif ($ARGV[0] && $ARGV[0] eq "charset")
+elsif ($op eq "charset")
 {
-   shift;
    print $cgi->header("text/html; charset=UTF-8");
    print @ARGV;
 }
-elsif ($ARGV[0] && $ARGV[0] eq "type")
+elsif ($op eq "type")
 {
-   shift;
    print $cgi->header(-Type => "foo/bar");
    print @ARGV;
 }
-elsif ($ARGV[0] && $ARGV[0] eq "unbuffer")
+elsif ($op eq "mod_perl")
 {
-   $| = 1;
-   shift;
+   # Deliberately initialize this AFTER creating the $cgi instance
+   $ENV{MOD_PERL} = 1;
    print $cgi->header();
    print @ARGV;
 }
-elsif ($ARGV[0] && $ARGV[0] eq "fh")
+elsif ($op eq "empty")
 {
-   shift;
+   print $cgi->header();
+}
+elsif ($op eq "doublehead")
+{
+   $CGI::HEADERS_ONCE = 1;
+   print $cgi->header();
+   print $cgi->header();
+   print @ARGV;
+}
+elsif ($op eq "unbuffer")
+{
+   $| = 1;
+   print $cgi->header();
+   print @ARGV;
+}
+elsif ($op eq "fh1")
+{
    my $fh = \*STDOUT;
-#   $cgi->useFileHandle($fh); # no difference
+   $cgi->useFileHandle($fh);
+   print $cgi->header("text/html");
+   print @ARGV;
+}
+elsif ($op eq "fh2")
+{
+   $cgi->useFileHandle(\*STDOUT);
+   print STDOUT $cgi->header("text/html");
+   print STDOUT @ARGV;
+}
+elsif ($op eq "fh3")
+{
+   my $fh = \*STDOUT;
+   $cgi->useFileHandle($fh);
    print $fh $cgi->header("text/html");
    print $fh @ARGV;
 }

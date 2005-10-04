@@ -1,12 +1,14 @@
 index.html
+Build.PL
 ChangeLog
 lib/CGI/Compress/Gzip.pm
-Build.PL
+lib/CGI/Compress/Gzip/FileHandle.pm
 LICENSE
 Makefile.PL
 MANIFEST
+META.yml
 README
 t/gzip.t
+t/pod-coverage.t
+t/pod.t
 t/testhelp
-META.yml
-

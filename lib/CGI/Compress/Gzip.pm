@@ -1,5 +1,25 @@
 package CGI::Compress::Gzip;
 
+use 5.006;
+use warnings;
+use strict;
+use English qw(-no_match_vars);
+
+use CGI::Compress::Gzip::FileHandle;
+
+use base qw(CGI);
+our $VERSION = '0.21';
+
+# Package globals - testing and debugging flags
+
+# These should only be used for extreme circumstances (e.g. testing)
+our $global_use_compression = 1;     # user-settable
+our $global_can_compress    = undef; # 1 = yes, 0 = no, undef = don't know yet
+
+# If true, add an outgoing HTTP header explaining why we are not
+# compressing if gzip turns itself off.
+our $global_give_reason = 0;
+
 =head1 NAME
 
 CGI::Compress::Gzip - CGI with automatically compressed output
@@ -82,35 +102,9 @@ disabled when autoflush (i.e. the $| variable) is set to true.  Future
 versions may try to enable autoflushing on the Zlib filehandles, if
 possible [Help wanted].
 
-=cut
-
-require 5.005_62;
-use strict;
-use warnings;
-use Carp;
-use CGI;
-
-our @ISA = qw(CGI);
-our $VERSION = '0.20';
-
-# Package globals
-
-our $global_use_compression = 1; # user-settable
-our $global_can_compress = undef; # 1 = yes, 0 = no, undef = don't know yet
-
-# If true, add an outgoing HTTP header explaining why we are not
-# compressing if gzip turns itself off.
-our $global_give_reason = 0;
-
-#==============================
-
 =head1 CLASS METHODS
 
 =over 4
-
-=cut
-
-#==============================
 
 =item new <CGI-ARGS>
 
@@ -124,41 +118,53 @@ sub new
 {
    my $pkg = shift;
 
-   $CGI::Compress::Gzip::wrapper::use_fh = undef;
    select STDOUT;
    my $self = $pkg->SUPER::new(@_);
+   $self->{'.CGIgz'} = {
+      ext_fh          => undef,
+      zlib_fh         => undef,
+      header_done     => 0,
+      use_compression => undef,
+   };
    return $self;
 }
-#==============================
 
 =item useCompression 1|0
 
-Turn compression on/off for all CGI::Compress::Gzip objects.  If
-turned on, compression will be used only if the prerequisite
-compression libraries are available and if the client browser requests
-compression.
+This can be used as a class method or an instance method.  The former
+is included for backward compatibility, and is NOT recommended.  As a
+class method, this changes the default value.  As an instance method
+it affects only the specified instance.
+
+Turn compression on/off for the target.  If turned on, compression
+will be used only if the prerequisite compression libraries are
+available and if the client browser requests compression.
+
+Defaults to on.
 
 =cut
 
 sub useCompression
 {
-   my $pkg = shift;
+   my $pkg_or_self = shift;
    my $set = shift;
 
-   $global_use_compression = $set;
-   return $pkg;
+   if (ref $pkg_or_self)
+   {
+      $pkg_or_self->{'.CGIgz'}->{use_compression} = $set ? 1 : 0;
+   }
+   else
+   {
+      $global_use_compression = $set ? 1 : 0;
+   }
+   return $pkg_or_self;
 }
-#==============================
 
 =back
 
 =head1 INSTANCE METHODS
 
 =over 4
-
-=cut
-
-#==============================
 
 =item useFileHandle FILEHANDLE
 
@@ -173,12 +179,11 @@ If this is not set, STDOUT is used.
 sub useFileHandle
 {
    my $self = shift;
-   my $fh = shift;
+   my $fh   = shift;
 
-   $CGI::Compress::Gzip::wrapper::use_fh = $fh;
+   $self->{'.CGIgz'}->{ext_fh} = $fh;
    return $self;
 }
-#==============================
 
 =item isCompressibleType CONTENT-TYPE
 
@@ -196,11 +201,10 @@ criteria.
 sub isCompressibleType
 {
    my $self = shift;
-   my $type = shift || "";
+   my $type = shift || q{};
 
    return $type =~ /^text\//;
 }
-#==============================
 
 =item header HEADER-ARGS
 
@@ -221,21 +225,22 @@ with.
 sub header
 {
    my $self = shift;
-   # further args passed on below
-   
-   if ($self->{'.header_printed'} && $self->{'.zlib_fh'})
-   {
-      return tied(${$self->{'.zlib_fh'}})->{pending_header};
-   }
+   my @args     = (@_);
 
-   my @args = (@_);
    my $compress = $self->_canCompress(\@args);
 
    my $header = $self->SUPER::header(@args);
-   $self->_startCompression($header) if ($compress);
+   if (!defined $header)   # workaround for problem found on 5.6.0 on Linux
+   {
+      $header = "";
+   }
+
+   if (!$self->{'.CGIgz'}->{header_done}++ && $compress)
+   {
+      $self->_startCompression($header);
+   }
    return $header;
 }
-#==============================
 
 # Enable the compression filehandle if:
 #  - The mime-type is appropriate (text/* is the default)
@@ -246,177 +251,221 @@ sub header
 
 sub _canCompress
 {
-   my $self = shift;
-   my $header = shift;  # array ref
+   my $self   = shift;
+   my $header = shift;    # array ref
 
-   my $compress = 1;
-   my $reason = "";
+   my $compress;
+   my $reason = q{};
    my @newheader;
 
+   my $settings = $self->{'.CGIgz'};
+
    # Check programmer preference
-   $compress &&= $global_use_compression;
-   $reason ||= "programmer request" if (!$compress);
-
-   $CGI::Compress::Gzip::wrapper::flush = $|; # save it in case we change it
-
-   # Check buffering (disable if autoflushing)
-   $compress &&= (!$CGI::Compress::Gzip::wrapper::flush);
-   $reason ||= "programmer wants unbuffered output" if (!$compress);
-
-   # Check that browser supports gzip
-   my $acc = $ENV{HTTP_ACCEPT_ENCODING};
-   $compress &&= ($acc && $acc =~ /\bgzip\b/i);
-   $reason ||= "user agent does not want gzip" if (!$compress);
-
-   # Check that the output will be HTML
-   $compress &&= $header && ref($header);
-   $reason ||= "no header to check" if (!$compress);
-
-   my $content_type = "";
-   if ($compress)
+   $compress = (defined $settings->{use_compression} ?
+                $settings->{use_compression} : $global_use_compression) ? 1 : 0;
+   if (!$compress)
    {
-      if (@$header && $header->[0] =~ /^[a-z]/)
-      {
-         # Using unkeyed version of arguments - convert to the keyed
-         # version
-
-         # arg order comes from the header() function in CGI.pm
-         my @flags = qw(Content_Type Status Cookie Target Expires
-                        NPH Charset Attachment P3P);
-         for (my $i=0; $i < @$header; $i++)
-         {
-            if ($i < @flags)
-            {
-               push @newheader, "-".$flags[$i], $header->[$i];
-            }
-            else
-            {
-               # Extra args
-               push @newheader, $header->[$i];
-            }
-         }
-      }
-      else
-      {
-         @newheader = (@$header);
-      }
-
-      my $encodingIndex = undef;
-      for (my $i=0; $i < @newheader; $i++)
-      {
-         next if (!defined $newheader[$i]);
-         if ($newheader[$i] =~ /^-?(?:Content[-_]Type|Type)$/i)
-         {
-            $content_type = $newheader[++$i];
-         }
-         elsif ($newheader[$i] =~ /^-?(?:Content[-_]Type|Type): (.*)$/i)
-         {
-            $content_type = $1;
-         }
-         elsif (($newheader[$i] =~ /^-?Status$/i && $newheader[++$i] =~ /(\d+)/) ||
-                $newheader[$i] =~ /^-?Status:\s*(\d+)/i)
-         {
-            my $status = $1;
-            if ($status != 200)
-            {
-               $compress = 0;
-               last;
-            }
-         }
-         elsif (($newheader[$i] =~ /^-?Content[-_]Encoding$/i && ++$i) ||
-                $newheader[$i] =~ /^-?Content[-_]Encoding: $/i)
-         {
-            if ($newheader[$i] =~ /\bgzip\b/i)
-            {
-               # Already gzip compressed
-               $compress = 0;
-               last;
-            }
-            else
-            {
-               $encodingIndex = $i;
-            }
-         }
-      }
-
-      if ($compress)
-      {
-         if (defined $encodingIndex)
-         {
-            $newheader[$encodingIndex] =~ s/^(?:-?Content[-_]Encoding:\s*)/gzip, /mio
-                or $newheader[$encodingIndex] = "gzip, " . $newheader[$encodingIndex];
-         }
-         else
-         {
-            push @newheader, "-Content_Encoding", "gzip";
-         }
-      }
-   }
-   $reason ||= "someone already requested gzip" if (!$compress);
-
-   $content_type ||= "text/html";
-   if (!$self->isCompressibleType($content_type))
-   {
-      # Not compressible media
-      $compress = 0;
-   }
-   $reason ||= "incompatible content-type $content_type" if (!$compress);
-
-   # Check that IO::Zlib is available
-   if ($compress)
-   {
-      if (!defined $global_can_compress)
-      {
-         local $SIG{__WARN__} = 'DEFAULT';
-         eval "require IO::Zlib";
-         $global_can_compress = $@ ? 0 : 1;
-      }
-      $compress &&= $global_can_compress;
-   }
-   $reason ||= "IO::Zlib not found" if (!$compress);
-
-   if ($compress)
-   {
-      @$header = @newheader;
+      $reason = 'programmer request';
    }
    else
    {
-      push @$header, "-X_non_gzip_reason", $reason if ($global_give_reason);
+
+      # save it in case we change it
+      $settings->{flush} = $OUTPUT_AUTOFLUSH;
+
+      # Check buffering (disable if autoflushing)
+      $compress = !$settings->{flush} ? 1 : 0;
+      if (!$compress)
+      {
+         $reason = 'programmer wants unbuffered output';
+      }
+      else
+      {
+
+         # Check that browser supports gzip
+         my $acc = $ENV{HTTP_ACCEPT_ENCODING};
+         $compress = $acc && $acc =~ /\bgzip\b/i ? 1 : 0;
+         if (!$compress)
+         {
+            $reason = 'user agent does not want gzip';
+         }
+         else
+         {
+
+            # Parse the header data and look for indicators of compressibility:
+            #  * appropriate content type
+            #  * already set for compression
+            #  * HTTP status not 200
+
+            my $content_type;
+
+            # This search reproduces the header parsing done by CGI.pm
+            if (@$header && $header->[0] =~ /^[a-z]/)
+            {
+
+               # Using unkeyed version of arguments - convert to the keyed
+               # version
+
+               # arg order comes from the header() function in CGI.pm
+               my @flags = qw(
+                  Content_Type Status Cookie Target Expires
+                  NPH Charset Attachment P3P
+               );
+               for (my $i = 0; $i < @$header; $i++)
+               {
+                  if ($i < @flags)
+                  {
+                     push @newheader, q{-} . $flags[$i], $header->[$i];
+                  }
+                  else
+                  {
+                     # Extra args
+                     push @newheader, $header->[$i];
+                  }
+               }
+            }
+            else
+            {
+               @newheader = @$header;
+            }
+
+            # gets set if we find an existing encoding directive
+            my $encoding_index = undef;
+
+          HEADER_DATUM:
+            for (my $i = 0; $i < @newheader; $i++)
+            {
+               next HEADER_DATUM if (!defined $newheader[$i]);
+               if ($newheader[$i] =~ /^-?(?:Content[-_]Type|Type)(.*)$/i)
+               {
+                  $content_type = $1;
+                  if ($content_type !~ s/^:\s*//)
+                  {
+                     $content_type = $newheader[++$i];
+                  }
+               }
+               elsif ($newheader[$i] =~ /^-?Status(.*)$/i)
+               {
+                  my $content = $1;
+                  if ($content !~ s/^:\s*//)
+                  {
+                     $content = $newheader[++$i];
+                  }
+                  my ($status) = $content =~ /^(\d+)/;
+                  if (!defined $status || $status ne "200")
+                  {
+                     $compress = 0;
+                     $reason   = 'HTTP status not 200';
+                     last HEADER_DATUM;
+                  }
+               }
+               elsif ($newheader[$i] =~ /^-?Content[-_]Encoding(.*)$/i)
+               {
+                  my $content = $1;
+                  if ($content !~ s/^:\s*//)
+                  {
+                     $content = $newheader[++$i];
+                  }
+                  $encoding_index = $i;
+
+                  if ($content =~ /\bgzip\b/i)
+                  {
+                     # Already gzip compressed
+                     $compress = 0;
+                     $reason   = 'someone already requested gzip';
+                     last HEADER_DATUM;
+                  }
+               }
+            }
+
+            if ($compress)
+            {
+               if (defined $encoding_index)
+               {
+                  # prepend gzip encoding to the existing encoding list
+                  $newheader[$encoding_index] =~ s/^((?:-?Content[-_]Encoding:\s*)?)/$1gzip, /mio;
+               }
+               else
+               {
+                  push @newheader, '-Content_Encoding', 'gzip';
+               }
+
+               $content_type ||= 'text/html';
+               if (!$self->isCompressibleType($content_type))
+               {
+                  # Not compressible media
+                  $compress = 0;
+                  $reason   = "incompatible content-type $content_type";
+               }
+               else
+               {
+
+                  # Check that IO::Zlib is available
+                  if (!defined $global_can_compress)
+                  {
+                     local $SIG{__WARN__} = 'DEFAULT';
+                     local $SIG{__DIE__}  = 'DEFAULT';
+                     eval { require IO::Zlib; };
+                     $global_can_compress = $EVAL_ERROR ? 0 : 1;
+                  }
+                  $compress = $global_can_compress;
+                  if (!$compress)
+                  {
+                     $reason = 'IO::Zlib not found';
+                  }
+                  else
+                  {
+                     @$header = @newheader;
+                  }
+               }
+            }
+         }
+      }
    }
+
+   if ($global_give_reason && $reason)
+   {
+      push @$header, '-X_non_gzip_reason', $reason;
+   }
+
+   #warn $reason if ($reason);
 
    return $compress;
 }
 
 sub _startCompression
 {
-   my $self = shift;
+   my $self   = shift;
    my $header = shift;
 
-   $CGI::Compress::Gzip::wrapper::use_fh ||= \*STDOUT;
-   binmode $CGI::Compress::Gzip::wrapper::use_fh;
+   my $settings = $self->{'.CGIgz'};
+   $settings->{ext_fh} ||= \*STDOUT;
+   binmode $settings->{ext_fh};
 
-   my $filehandle = CGI::Compress::Gzip::wrapper->new($CGI::Compress::Gzip::wrapper::use_fh, "wb");
+   my $filehandle = CGI::Compress::Gzip::FileHandle->new($settings->{ext_fh}, 'wb');
    if (!$filehandle)
    {
-      carp "Failed to open Zlib output, reverting to uncompressed output";
-      return undef;
+      warn 'Failed to open Zlib output, reverting to uncompressed output';
+      return;
    }
-   
+
    # All output from here on goes to our new filehandle
-   if ($CGI::Compress::Gzip::wrapper::flush && UNIVERSAL::can($filehandle, "autoflush"))
-   {
-      $filehandle->autoflush();
-   }
+
+   ## Autoflush makes no sense since compression is disabled if autoflush is on
+   #if ($filehandle->can('autoflush'))
+   #{
+   #   $filehandle->autoflush();
+   #}
 
    select $filehandle;
 
-   $self->{'.zlib_fh'} = $filehandle;  # needed for destructor
-   
-   tied(${$self->{'.zlib_fh'}})->{pending_header} = $header;
+   $settings->{zlib_fh} = $filehandle;    # needed for destructor
+
+   my $tied = tied $$filehandle;
+   $tied->{pending_header} = $header;
 
    return $self;
 }
-#==============================
 
 =item DESTROY
 
@@ -429,166 +478,23 @@ sub DESTROY
 {
    my $self = shift;
 
-   if ($self->{'.zlib_fh'})
+   if ($self->{'.CGIgz'}->{zlib_fh})
    {
-      $self->{'.zlib_fh'}->close() 
-          or &croak("Failed to close the Zlib filehandle");
+      $self->{'.CGIgz'}->{zlib_fh}->close()
+          or die 'Failed to close the Zlib filehandle';
    }
+   if ($self->{'.CGIgz'}->{ext_fh})
+   {
+      select $self->{'.CGIgz'}->{ext_fh};
+   }
+
    return $self->SUPER::DESTROY();
-}
-#==============================
-
-package CGI::Compress::Gzip::wrapper;
-
-=back
-
-=head1 HELPER CLASS
-
-CGI::Compress::Gzip also implements a helper class in package
-CGI::Compress::Gzip::wrapper which subclasses IO::Zlib.  This helper
-is needed to make sure that output is not compressed until the CGI
-header is emitted.  This wrapper delays the ignition of the zlib
-filter until it sees the exact same header generated by
-CGI::Compress::Gzip::header() pass through it's WRITE() method.  If
-you change the header before printing it, this class will throw an
-exception.
-
-This class hold one global variable representing the previous default
-filehandle used before the gzip filter is put in place.  This
-filehandle, usually STDOUT, is replaced after the gzip stream finishes
-(which is usually when the CGI object goes out of scope and is
-destroyed).
-
-=cut
-
-our @ISA = qw(IO::Zlib);
-
-our $use_fh;
-
-sub OPEN
-{
-   my $self = shift;
-
-   # Delay opening until after the header is printed.
-   $self->{openargs} = [@_];
-   $self->{outtype} = undef;
-   $self->{buffer} = "";
-   return $self;
-}
-
-sub WRITE
-{
-   my $self = shift;
-   my $buf = shift;
-   my $length = shift;
-   my $offset = shift;
-
-   # Appropriated from IO::Zlib:
-   &Carp::croak("bad LENGTH") unless ($length <= length($buf));
-   &Carp::croak("OFFSET not supported") if (defined($offset) && $offset != 0);
-
-   my $bytes = 0;
-   my $header = $self->{pending_header};
-   if ($header)
-   {
-      if (length($header) > $length)
-      {
-         $self->{pending_header} = substr($header, $length);
-         $header = substr($header, 0, $length);
-      }
-      else
-      {
-         $self->{pending_header} = "";
-      }
-      if ($buf =~ s/^\Q$header//s)
-      {
-         no strict qw(refs);
-         if (print $use_fh $header)
-         {
-            $bytes += length($header);
-            $length -= length($header);
-         }
-         else
-         {
-            &Carp::croak("Failed to print the uncompressed CGI header");
-         }
-      }
-      else
-      {
-         &Carp::croak("Expected to print the CGI header");
-      }
-   }
-   if ($length)
-   {
-      if (!defined $self->{outtype})
-      {
-         my $fh = $self->{openargs}->[0];
-         my $mod_perl = ($ENV{MOD_PERL} ||
-                         ($ENV{GATEWAY_INTERFACE} &&
-                          $ENV{GATEWAY_INTERFACE} =~ /^CGI-Perl\//));
-         my $isglob = (ref($fh) && ref($fh) eq "GLOB" &&
-                       defined $fh->fileno());
-         my $isfilehandle = (ref($fh) && 
-                             ref($fh) !~ /^GLOB|SCALAR|HASH|ARRAY|CODE$/ &&
-                             $fh->can("fileno") &&
-                             defined $fh->fileno());
-
-         if ((!$mod_perl) && ($isglob || $isfilehandle)) 
-         {
-            # Finished printing header!
-            # Complete delayed open
-            if (!$self->SUPER::OPEN(@{$self->{openargs}}))
-            {
-               &Carp::croak("Failed to open the compressed output stream");
-            }
-            $self->{outtype} = "stream";
-         }
-         else
-         {
-            $self->{outtype} = "block";
-         }
-      }
-      if ($self->{outtype} eq "stream")
-      {
-         $bytes += $self->SUPER::WRITE($buf, $length, $offset);
-      }
-      else
-      {
-         $self->{buffer} .= $buf;
-         $bytes += length $buf;
-      }
-   }
-   return $bytes;
-}
-
-sub CLOSE
-{
-   # Debugging:
-   #$SIG{__DIE__} = sub {print STDERR "die: ".join("", @_)};
-
-   my $self = shift;
-
-   $use_fh = undef;
-   select STDOUT;
-   my $result;
-   if ($self->{outtype} && $self->{outtype} eq "stream")
-   {
-      $result = $self->SUPER::CLOSE();
-      if (!$result)
-      {
-         &Carp::confess("Failed to close gzip $!");
-      }
-   }
-   else
-   {
-      print STDOUT Compress::Zlib::memGzip($self->{buffer});
-      $result = 1;
-   }
-   return $result;
 }
 
 1;
 __END__
+
+=back
 
 =head1 CAVEATS
 
@@ -641,6 +547,41 @@ C<print> without a filehandle argument.
 
 Future versions may steal away STDOUT and replace it with the
 compression filehandle, but that seemed too risky for this version.
+
+=head2 Header Munging
+
+When sending compressed output, the HTTP headers must remain
+uncompressed.  So, this module goes to great effort to keep the
+headers and body separate.  That has led to CGI::header() emulation
+code that is a little brittle.  Most potential problems arise because
+STDOUT gets tweaked as soon as header() is called.
+
+If you use the CGI.pm header() API as specified in CGI.pm, then all
+should go well.  But if you do anything unusual, this module may
+break.  For example:
+
+   # BROKEN CODE
+   use CGI::Compress::Gzip;
+   my $q = CGI::Compress::Gzip->new;
+   print "Set-Cookie: foo=bar\n" . $q->header;
+   print "Hello, world\n";
+
+   # WORKAROUND 1 (preferred)
+   use CGI::Compress::Gzip;
+   my $q = CGI::Compress::Gzip->new;
+   print $q->header("-Set_Cookie" => "foo=bar");
+   print "Hello, world\n";
+
+   # WORKAROUND 2
+   use CGI::Compress::Gzip;
+   my $q = CGI::Compress::Gzip->new;
+   print "Set-Cookie: foo=bar\n";
+   print $q->header;
+   print "Hello, world\n";
+
+Future versions may try to parse the header to look for its end rather
+than insisting that the printed version match the version returned by
+header().
 
 =head1 SEE ALSO
 

@@ -1,3 +1,37 @@
+2005-10-04 16:11  chris
+
+	* Build.PL, Makefile.PL: Add 5.6.0 dependency
+
+2005-10-04 15:59  chris
+
+	* lib/CGI/Compress/Gzip.pm: Fixes for 5.6.0 CGI.pm and unfreed
+	  scalar on 5.8.6 threaded on Linux
+
+2005-10-04 15:21  chris
+
+	* lib/CGI/Compress/Gzip/FileHandle.pm, t/gzip.t, t/testhelp: Empty
+	  body bug fix
+
+2005-10-04 15:05  chris
+
+	* MANIFEST: Fix manifest
+
+2005-10-04 15:05  chris
+
+	* Build.PL, MANIFEST.SKIP, Makefile.PL, lib/CGI/Compress/Gzip.pm,
+	  lib/CGI/Compress/Gzip/FileHandle.pm, t/gzip.t, t/testhelp: v0.21
+	  Some header handling bug fixes More regression tests Break helper
+	  package out to its own file
+
+2005-09-20 14:32  chris
+
+	* MANIFEST, MANIFEST.SKIP, t/pod-coverage.t, t/pod.t: Add routine
+	  tests
+
+2005-07-13 22:09  chris
+
+	* t/: gzip.t, testhelp: Simple code cleanup
+
 2005-04-22 22:52  chris
 
 	* Build.PL, LICENSE, MANIFEST, README, index.html,

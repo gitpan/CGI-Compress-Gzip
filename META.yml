@@ -1,20 +1,21 @@
 ---
 name: CGI-Compress-Gzip
-version: 0.20
+version: 0.21
 author:
-  - Clotho Advanced Media, I<cpan@clotho.com>
+  - 'Clotho Advanced Media, Inc. <cpan@clotho.com>'
 abstract: CGI with automatically compressed output
 license: perl
 requires:
   CGI: 2.00
   IO::Zlib: 1.01
+  perl: 5.006
 build_requires:
+  File::Temp: 0
   Test::More: 0.01
 provides:
   CGI::Compress::Gzip:
     file: lib/CGI/Compress/Gzip.pm
-    version: 0.20
-  CGI::Compress::Gzip::wrapper:
-    file: lib/CGI/Compress/Gzip.pm
-    version: 0.20
-generated_by: Module::Build version 0.2609
+    version: 0.21
+  CGI::Compress::Gzip::FileHandle:
+    file: lib/CGI/Compress/Gzip/FileHandle.pm
+generated_by: Module::Build version 0.2611
