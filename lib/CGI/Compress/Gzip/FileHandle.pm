@@ -6,6 +6,9 @@ use strict;
 use English qw(-no_match_vars);
 
 use base qw(IO::Zlib);
+our $VERSION = '0.22';
+
+=for stopwords zlib
 
 =head1 NAME
 
@@ -13,14 +16,23 @@ CGI::Compress::Gzip::FileHandle - CGI::Compress::Gzip helper package
 
 =head1 LICENSE
 
-Copyright 2005 Clotho Advanced Media, Inc., <cpan@clotho.com>
+Copyright 2006 Clotho Advanced Media, Inc., <cpan@clotho.com>
 
 This library is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
 
+=head1 SYNOPSIS
+
+   use CGI::Compress::Gzip;
+  
+   my $cgi = new CGI::Compress::Gzip;
+   print $cgi->header();
+   print "<html> ...";
+
 =head1 DESCRIPTION
 
-This is intended for internal use only.
+This is intended for internal use only!  Use CGI::Compress::Gzip
+instead.
 
 This CGI::Compress::Gzip helper class subclasses IO::Zlib.  It is 
 is needed to make sure that output is not compressed until the CGI
@@ -42,7 +54,7 @@ destroyed).
 
 =item OPEN
 
-Overrides IO::Zlib::OPEN.  This method oesn't actually do anything --
+Overrides IO::Zlib::OPEN.  This method doesn't actually do anything --
 it just stores it's arguments for a later call to SUPER::OPEN in
 WRITE().  The reason is that we may not have seen the header yet, so
 we don't yet know whether to compress output.
@@ -85,90 +97,91 @@ sub WRITE
       die 'OFFSET not supported';
    }
 
-   my $bytes  = 0;
-   my $header = $self->{pending_header};
-   if ($header)
+   my $bytes = 0;
+   if ($self->{pending_header})
    {
-      if (length $header > $length)
-      {
-         $self->{pending_header} = substr $header, $length;
-         $header = substr $header, 0, $length;
-      }
-      else
-      {
-         $self->{pending_header} = q{};
-      }
-
-      if ($buf =~ s/^\Q$header//s)
-      {
-         my $out_fh = $self->{out_fh};
-         if (print {$out_fh} $header)
-         {
-            my $lh = length $header;
-            $bytes += $lh;
-            $length -= $lh;
-         }
-         else
-         {
-            die 'Failed to print the uncompressed CGI header';
-         }
-      }
-      else
-      {
-         die 'Expected to print the CGI header';
-      }
+      # Side effects: $buf and $self->{pending_header} are trimmed
+      $bytes = $self->_print_header(\$buf, $length);
+      $length -= $bytes;
    }
+   return $bytes if (!$length);  # if length is zero, there's no body content to print
 
-   if ($length)
+   if (!defined $self->{outtype})
    {
-      if (!defined $self->{outtype})
+      # Determine whether we can stream data to the output filehandle
+      
+      # default case: no, cannot stream
+      $self->{outtype} = 'block';
+
+      # Mod perl already does funky filehandle stuff, so don't stream
+      my $is_mod_perl = ($ENV{MOD_PERL} ||
+                         ($ENV{GATEWAY_INTERFACE} &&
+                          $ENV{GATEWAY_INTERFACE} =~ m/ \A CGI-Perl\/ /xms));
+
+      my $type = ref $self->{out_fh};
+
+      if (!$is_mod_perl && $type)
       {
+         my $is_glob = $type eq 'GLOB' && defined $self->{out_fh}->fileno();
+         my $is_filehandle = ($type !~ m/ \A GLOB|SCALAR|HASH|ARRAY|CODE \z /xms &&
+                              $self->{out_fh}->can('fileno') &&
+                              defined $self->{out_fh}->fileno());
 
-         # Determine whether we can stream data to the output filehandle
-
-         # default case: no, cannot stream
-         $self->{outtype} = 'block';
-
-         # Mod perl already does funky filehandle stuff, so don't stream
-         my $is_mod_perl = ($ENV{MOD_PERL} ||
-                            ($ENV{GATEWAY_INTERFACE} &&
-                             $ENV{GATEWAY_INTERFACE} =~ /^CGI-Perl\//));
-         if (!$is_mod_perl)
+         if ($is_glob || $is_filehandle)
          {
-            if (ref $self->{out_fh})
+            # Complete delayed open
+            if (!$self->SUPER::OPEN($self->{out_fh}, @{$self->{openargs}}))
             {
-               my $type = ref $self->{out_fh};
-               my $is_glob = $type eq 'GLOB' && defined $self->{out_fh}->fileno();
-               my $is_filehandle = ($type !~ /^GLOB|SCALAR|HASH|ARRAY|CODE$/ &&
-                                    $self->{out_fh}->can('fileno') &&
-                                    defined $self->{out_fh}->fileno());
-
-               if ($is_glob || $is_filehandle)
-               {
-                  # Finished printing header!
-                  # Complete delayed open
-                  if (!$self->SUPER::OPEN($self->{out_fh}, @{$self->{openargs}}))
-                  {
-                     die 'Failed to open the compressed output stream';
-                  }
-
-                  $self->{outtype} = 'stream';
-               }
+               die 'Failed to open the compressed output stream';
             }
+               
+            $self->{outtype} = 'stream';
          }
       }
-
-      if ($self->{outtype} eq 'stream')
-      {
-         $bytes += $self->SUPER::WRITE($buf, $length, $offset);
-      }
-      else
-      {
-         $self->{buffer} .= $buf;
-         $bytes += length $buf;
-      }
    }
+
+   if ($self->{outtype} eq 'stream')
+   {
+      $bytes += $self->SUPER::WRITE($buf, $length, $offset);
+   }
+   else
+   {
+      $self->{buffer} .= $buf;
+      $bytes += length $buf;
+   }
+
    return $bytes;
+}
+
+sub _print_header
+{
+   my $self = shift;
+   my $buf = shift;
+   my $length = shift;
+
+   my $header = $self->{pending_header};
+   if ($length < length $header)
+   {
+      $self->{pending_header} = substr $header, $length;
+      $header = substr $header, 0, $length;
+   }
+   else
+   {
+      $self->{pending_header} = q{};
+   }
+
+   if (${$buf} !~ s/ \A \Q$header\E //xms)
+   {
+      die 'Expected to print the CGI header';
+   }
+
+   my $out_fh = $self->{out_fh};
+   if (!print {$out_fh} $header)
+   {
+      die 'Failed to print the uncompressed CGI header';
+   }
+   
+   return length $header;
 }
 
 =item CLOSE
@@ -212,3 +225,5 @@ __END__
 Clotho Advanced Media, I<cpan@clotho.com>
 
 Primary developer: Chris Dolan
+
+=cut

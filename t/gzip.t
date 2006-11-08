@@ -9,7 +9,7 @@ use English qw(-no_match_vars);
 
 BEGIN
 { 
-   use Test::More tests => 59;
+   use Test::More tests => 56;
    use_ok('CGI::Compress::Gzip');
 }
 
@@ -33,15 +33,19 @@ is ($testbuf, $compare, 'Compress::Zlib double-check');
 {
    local *FILE1;
    open FILE1, '>', $testfile or die 'Cannot write a temp file';
+   binmode FILE1;
    local *STDOUT = *FILE1;
    my $fh = IO::Zlib->new(\*FILE1, 'wb');
    print $fh $compare;
    close $fh;
    close FILE1;
 
-   open FILE1, '<', $testfile or die 'Cannot read temp file';
-   my $out = join(q{}, <FILE1>);
-   close(FILE1);
+   my $in_fh;
+   open $in_fh, '<', $testfile or die 'Cannot read temp file';
+   binmode $in_fh;
+   local $INPUT_RECORD_SEPARATOR = undef;
+   my $out = <$in_fh>;
+   close $in_fh;
    is($out, $zcompare, 'IO::Zlib test');
 }
 
@@ -49,155 +53,195 @@ is ($testbuf, $compare, 'Compress::Zlib double-check');
 
 {
    my $dummy = CGI::Compress::Gzip->new();
-   my @headers;
 
-   ok(!$dummy->isCompressibleType(), "compressible types");
-   ok($dummy->isCompressibleType("text/html"), "compressible types");
-   ok($dummy->isCompressibleType("text/plain"), "compressible types");
-   ok(!$dummy->isCompressibleType("image/jpg"), "compressible types");
-   ok(!$dummy->isCompressibleType("application/octet-stream"), "compressible types");
+   ok(!$dummy->isCompressibleType(), 'compressible types');
+   ok($dummy->isCompressibleType('text/html'), 'compressible types');
+   ok($dummy->isCompressibleType('text/plain'), 'compressible types');
+   ok(!$dummy->isCompressibleType('image/jpg'), 'compressible types');
+   ok(!$dummy->isCompressibleType('application/octet-stream'), 'compressible types');
  
    {
       local $ENV{HTTP_ACCEPT_ENCODING} = '';
-      @headers = ();
-      is_deeply([$dummy->_canCompress(\@headers), \@headers],
-                [0, []],
-                "header test - env");
-
-      local $CGI::Compress::Gzip::global_give_reason = 1;
-      @headers = ();
-      is($dummy->_canCompress(\@headers), 0, "header test - reason");
-      is(scalar @headers, 2, "header test - reason");
-      is($headers[0], "-X_non_gzip_reason", "header test - reason");
+      my @headers;
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers], [0, []], 'header test - env');
    }
 
    {
       local $ENV{HTTP_ACCEPT_ENCODING} = 'bzip2';
-      @headers = ();
-      is_deeply([$dummy->_canCompress(\@headers), \@headers],
-                [0, []],
-                "header test - env");
+      my @headers;
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers], [0, []], 'header test - env');
    }
 
    # For the rest of the tests, pretend browser told us to turn on gzip
    local $ENV{HTTP_ACCEPT_ENCODING} = 'gzip';
 
-   @headers = ();
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [1, ["-Content_Encoding", "gzip"]],
-             "header test - env");
+   {
+      my @headers;
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers], [1, ['-Content_Encoding', 'gzip']], 'header test - env');
+   }
 
    {
       local $CGI::Compress::Gzip::global_give_reason = 1;
-      @headers = ();
-      is_deeply([$dummy->_canCompress(\@headers), \@headers],
-                [1, ["-Content_Encoding", "gzip"]],
-                "header test - reason");
+      my @headers;
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers], [1, ['-Content_Encoding', 'gzip']], 'header test - reason');
    }
 
    # Turn off compression
    CGI::Compress::Gzip->useCompression(0);
-   @headers = ();
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [0, []],
-             "header test - override");
+   {
+      my @headers;
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers], [0, []], 'header test - override');
+   }
    CGI::Compress::Gzip->useCompression(1);
 
    # Turn off compression
    $dummy->useCompression(0);
-   @headers = ();
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [0, []],
-             "header test - override");
+   {
+      my @headers;
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers], [0, []], 'header test - override');
+   }
    $dummy->useCompression(1);
 
    {
       local $OUTPUT_AUTOFLUSH = 1;
-      @headers = ();
-      is_deeply([$dummy->_canCompress(\@headers), \@headers],
-                [0, []],
-                "header test - autoflush");
+      my @headers;
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers], [0, []], 'header test - autoflush');
    }
 
-   @headers = ("text/plain");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [1, ["-Content_Type", "text/plain", "-Content_Encoding", "gzip"]],
-             "header test - type");
+   {
+      my @headers = ('text/plain');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [1, ['-Content_Type', 'text/plain', '-Content_Encoding', 'gzip']],
+                'header test - type');
+   }
 
-   @headers = ("-Content_Type", "text/plain");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [1, ["-Content_Type", "text/plain", "-Content_Encoding", "gzip"]],
-             "header test - type");
+   {
+      my @headers = ('-Content_Type', 'text/plain');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [1, ['-Content_Type', 'text/plain', '-Content_Encoding', 'gzip']],
+                'header test - type');
+   }
 
-   @headers = ("Content_Type", "text/plain");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [1, ["Content_Type", "text/plain", "-Content_Encoding", "gzip"]],
-             "header test - type");
+   {
+      my @headers = ('Content_Type', 'text/plain');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [1, ['Content_Type', 'text/plain', '-Content_Encoding', 'gzip']],
+                'header test - type');
+   }
 
-   @headers = ("-type", "text/plain");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [1, ["-type", "text/plain", "-Content_Encoding", "gzip"]],
-             "header test - type");
+   {
+      my @headers = ('-type', 'text/plain');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [1, ['-type', 'text/plain', '-Content_Encoding', 'gzip']],
+                'header test - type');
+   }
 
-   @headers = ("Content_Type: text/plain");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [1, ["Content_Type: text/plain", "-Content_Encoding", "gzip"]],
-             "header test - type");
+   {
+      my @headers = ('Content_Type: text/plain');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [1, ['Content_Type: text/plain', '-Content_Encoding', 'gzip']],
+                'header test - type');
+   }
 
-   @headers = ("Content_Type: image/gif");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [0, ["Content_Type: image/gif"]],
-             "header test - type");
+   {
+      my @headers = ('Content_Type: image/gif');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [0, ['Content_Type: image/gif']],
+                'header test - type');
+   }
 
-   @headers = ("-Content_Encoding", "foo");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [1, ["-Content_Encoding", "gzip, foo"]],
-             "header test - encoding");
+   {
+      my @headers = ('-Content_Encoding', 'foo');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [1, ['-Content_Encoding', 'gzip, foo']],
+                'header test - encoding');
+   }
 
-   @headers = ("-Content_Encoding", "gzip");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [0, ["-Content_Encoding", "gzip"]],
-             "header test - encoding");
+   {
+      my @headers = ('-Content_Encoding', 'gzip');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [0, ['-Content_Encoding', 'gzip']],
+                'header test - encoding');
+   }
 
-   @headers = ("Content-Encoding: foo");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [1, ["Content-Encoding: gzip, foo"]],
-             "header test - encoding");
+   {
+      my @headers = ('Content-Encoding: foo');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [1, ['Content-Encoding: gzip, foo']],
+                'header test - encoding');
+   }
 
-   @headers = ("-Status", "200");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [1, ["-Status", "200", "-Content_Encoding", "gzip"]],
-             "header test - status");
+   {
+      my @headers = ('-Status', '200');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [1, ['-Status', '200', '-Content_Encoding', 'gzip']],
+                'header test - status');
+   }
 
-   @headers = ("Status: 200");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [1, ["Status: 200", "-Content_Encoding", "gzip"]],
-             "header test - status");
+   {
+      my @headers = ('Status: 200');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [1, ['Status: 200', '-Content_Encoding', 'gzip']],
+                'header test - status');
+   }
 
-   @headers = ("Status: 200 OK");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [1, ["Status: 200 OK", "-Content_Encoding", "gzip"]],
-             "header test - status");
+   {
+      my @headers = ('Status: 200 OK');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [1, ['Status: 200 OK', '-Content_Encoding', 'gzip']],
+                'header test - status');
+   }
 
-   @headers = ("Status: 500");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [0, ["Status: 500"]],
-             "header test - status");
+   {
+      my @headers = ('Status: 500');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [0, ['Status: 500']],
+                'header test - status');
+   }
 
-   @headers = ("-Status", "junk");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [0, ["-Status", "junk"]],
-             "header test - status");
+   {
+      my @headers = ('-Status', 'junk');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [0, ['-Status', 'junk']],
+                'header test - status');
+   }
 
-   @headers = ("Status: junk");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [0, ["Status: junk"]],
-             "header test - status");
+   {
+      my @headers = ('Status: junk');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [0, ['Status: junk']],
+                'header test - status');
+   }
 
-   @headers = ("-Irrelevent", "1");
-   is_deeply([$dummy->_canCompress(\@headers), \@headers],
-             [1, ["-Irrelevent", "1", "-Content_Encoding", "gzip"]],
-             "header test - other");
+   {
+      my @headers = ('-Irrelevent', '1');
+      my ($compress, $reason) = $dummy->_can_compress(\@headers);
+      is_deeply([$compress, \@headers],
+                [1, ['-Irrelevent', '1', '-Content_Encoding', 'gzip']],
+                'header test - other');
+   }
 }
 
 ## Tests that are as real-life as we can manage
@@ -208,7 +252,7 @@ ok(CGI::Compress::Gzip->useCompression(0), 'Turn off compression');
 my $redir = 'http://www.foo.com/';
 
 my $interp = "$^X -Iblib/arch -Iblib/lib";
-$interp .= " -MDevel::Cover" if (defined $Devel::Cover::VERSION);
+$interp .= ' -MDevel::Cover' if (defined $Devel::Cover::VERSION);
 my $basecmd = "$interp t/testhelp";
 
 # Get CGI header for comparison in basic case
@@ -227,7 +271,7 @@ my $compareheader = CGI->new('')->header();
 {
    local $ENV{HTTP_ACCEPT_ENCODING} = 'gzip';
 
-   my $zempty = Compress::Zlib::memGzip("");
+   my $zempty = Compress::Zlib::memGzip(q{});
 
    my $out = `$basecmd empty "$compare"`;
    ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//si ||
