@@ -7,7 +7,7 @@ use English qw(-no_match_vars);
 use CGI::Compress::Gzip::FileHandle;
 use base 'CGI';
 
-our $VERSION = '0.22';
+our $VERSION = '0.23';
 
 # Package globals - testing and debugging flags
 
@@ -19,6 +19,8 @@ our $global_can_compress    = undef; # 1 = yes, 0 = no, undef = don't know yet
 # compressing if gzip turns itself off.
 our $global_give_reason = 0;
 
+#=encoding utf8
+
 =for stopwords Laga Mahesa Rezic Rhesa Rozendaal Slaven Willamowius Zlib brian foy webserver Koenig destructor
 
 =head1 NAME
@@ -27,7 +29,9 @@ CGI::Compress::Gzip - CGI with automatically compressed output
 
 =head1 LICENSE
 
-Copyright 2006 Clotho Advanced Media, Inc., <cpan@clotho.com>
+Copyright 2006-2007 Clotho Advanced Media, Inc., <cpan@clotho.com>
+
+Copyright 2007-2008 Chris Dolan <cdolan@cpan.org>
 
 This library is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
@@ -117,10 +121,10 @@ run!  All arguments are passed to the parent class.
 
 sub new
 {
-   my $pkg = shift;
+   my ($pkg, @args) = @_;
 
    select STDOUT;
-   my $self = $pkg->SUPER::new(@_);
+   my $self = $pkg->SUPER::new(@args);
    $self->{'.CGIgz'} = {
       ext_fh          => undef,
       zlib_fh         => undef,
@@ -149,8 +153,7 @@ Defaults to on.
 
 sub useCompression
 {
-   my $pkg_or_self = shift;
-   my $value = shift;
+   my ($pkg_or_self, $value) = @_;
 
    if (ref $pkg_or_self)
    {
@@ -181,8 +184,7 @@ If this is not set, STDOUT is used.
 
 sub useFileHandle
 {
-   my $self = shift;
-   my $fh   = shift;
+   my ($self, $fh) = @_;
 
    $self->{'.CGIgz'}->{ext_fh} = $fh;
    return $self;
@@ -203,10 +205,9 @@ criteria.
 
 sub isCompressibleType
 {
-   my $self = shift;
-   my $type = shift || q{};
+   my ($self, $type) = @_;
 
-   return $type =~ m/ \A text\/ /xms;
+   return ($type || q{}) =~ m/ \A text\/ /xms;
 }
 
 =item $self->header([HEADER ARGS])
@@ -227,8 +228,7 @@ with.
 
 sub header
 {
-   my $self = shift;
-   my @args = @_;
+   my ($self, @args) = @_;
 
    my ($compress, $reason) = $self->_can_compress(\@args);
    if (!$compress && $global_give_reason && $reason)
@@ -262,8 +262,8 @@ sub header
 
 sub _can_compress ## no critic(Subroutines::ProhibitExcessComplexity)
 {
-   my $self   = shift;
-   my $header = shift;    # array ref
+   my ($self, $header) = @_;
+   # $header is an array ref
 
    my $settings = $self->{'.CGIgz'};
 
@@ -299,7 +299,7 @@ sub _can_compress ## no critic(Subroutines::ProhibitExcessComplexity)
    my $content_type;
 
    # This search reproduces the header parsing done by CGI.pm
-   if (@{$header} && $header->[0] =~ m/ \A [a-z] /xms)
+   if (@{$header} && $header->[0] =~ m/ \A [a-z] /xms) ## no critic (ProhibitEnumeratedClasses)
    {
 
       # Using unkeyed version of arguments - convert to the keyed version
@@ -328,7 +328,7 @@ sub _can_compress ## no critic(Subroutines::ProhibitExcessComplexity)
    }
 
    # gets set if we find an existing encoding directive
-   my $encoding_index = undef;
+   my $encoding_index;
 
    for (my $i = 0; $i < @newheader; $i++)
    {
@@ -394,7 +394,7 @@ sub _can_compress ## no critic(Subroutines::ProhibitExcessComplexity)
    {
       local $SIG{__WARN__} = 'DEFAULT';
       local $SIG{__DIE__}  = 'DEFAULT';
-      eval { require IO::Zlib; };
+      eval { require IO::Zlib; };  ## no critic (RequireCheckingReturnValueOfEval)
       $global_can_compress = $EVAL_ERROR ? 0 : 1;
    }
    if (!$global_can_compress)
@@ -410,8 +410,7 @@ sub _can_compress ## no critic(Subroutines::ProhibitExcessComplexity)
 
 sub _start_compression
 {
-   my $self   = shift;
-   my $header = shift;
+   my ($self, $header) = @_;
 
    my $settings = $self->{'.CGIgz'};
    $settings->{ext_fh} ||= \*STDOUT;
@@ -451,7 +450,7 @@ there is one open.
 
 sub DESTROY
 {
-   my $self = shift;
+   my ($self) = @_;
 
    if ($self->{'.CGIgz'}->{zlib_fh})
    {

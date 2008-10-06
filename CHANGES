@@ -1,5 +1,14 @@
 Revision history for Perl module CGI::Compress::Gzip
 
+0.23  05 Oct 2008
+      [FIXES]
+      - FINALLY fixed a long standing, spurious test failure due to
+        envvars not passed to subprocesses.  For example:
+        http://www.nntp.perl.org/group/perl.cpan.testers/2008/10/msg2380213.html
+      [INTERNALS]
+      - Comply with Perl::Critic v1.093
+      - Clean up test code
+
 0.22  07 Nov 2006
       [FIXES]
       - Set binmode in tests

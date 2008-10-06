@@ -13,4 +13,6 @@ Module::Build->new(
       'File::Temp'       => 0,
    },
    add_to_cleanup => [ 'CGI-Compress-Gzip-*' ],
+   create_readme => 1,
+   create_makefile_pl => 'traditional',
 )->create_build_script;

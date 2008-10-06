@@ -4,9 +4,12 @@ use 5.006;
 use warnings;
 use strict;
 use English qw(-no_match_vars);
+use Compress::Zlib;
 
 use base qw(IO::Zlib);
-our $VERSION = '0.22';
+our $VERSION = '0.23';
+
+#=encoding utf8
 
 =for stopwords zlib
 
@@ -16,7 +19,9 @@ CGI::Compress::Gzip::FileHandle - CGI::Compress::Gzip helper package
 
 =head1 LICENSE
 
-Copyright 2006 Clotho Advanced Media, Inc., <cpan@clotho.com>
+Copyright 2006-2007 Clotho Advanced Media, Inc., <cpan@clotho.com>
+
+Copyright 2007-2008 Chris Dolan <cdolan@cpan.org>
 
 This library is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
@@ -63,11 +68,11 @@ we don't yet know whether to compress output.
 
 sub OPEN
 {
-   my $self = shift;
+   my ($self, $fh, @args) = @_;
 
    # Delay opening until after the header is printed.
-   $self->{out_fh}         = shift;
-   $self->{openargs}       = [@_];
+   $self->{out_fh}         = $fh;
+   $self->{openargs}       = \@args;
    $self->{outtype}        = undef;
    $self->{buffer}         = q{};
    $self->{pending_header} = q{};
@@ -82,10 +87,7 @@ Emit the uncompressed header followed by the compressed body.
 
 sub WRITE
 {
-   my $self   = shift;
-   my $buf    = shift;
-   my $length = shift;
-   my $offset = shift;
+   my ($self, $buf, $length, $offset) = @_;
 
    # Appropriated from IO::Zlib:
    if ($length > length $buf)
@@ -109,7 +111,7 @@ sub WRITE
    if (!defined $self->{outtype})
    {
       # Determine whether we can stream data to the output filehandle
-      
+
       # default case: no, cannot stream
       $self->{outtype} = 'block';
 
@@ -155,9 +157,7 @@ sub WRITE
 
 sub _print_header
 {
-   my $self = shift;
-   my $buf = shift;
-   my $length = shift;
+   my ($self, $buf, $length) = @_;
 
    my $header = $self->{pending_header};
    if ($length < length $header)
@@ -192,7 +192,7 @@ Flush the compressed output.
 
 sub CLOSE
 {
-   my $self = shift;
+   my ($self) = @_;
 
    my $out_fh = $self->{out_fh};
    $self->{out_fh} = undef;    # clear it, so we can't write to it after this method ends
