@@ -45,7 +45,8 @@ is ($testbuf, $compare, 'Compress::Zlib double-check');
    my $fh = IO::Zlib->new(\*OUT_FILE, 'wb') or die;
    print {$fh} $compare;
    close $fh or die;
-   close OUT_FILE and diag('Unexpected success closing already closed filehandle') or q{};
+   close OUT_FILE ## no critic (RequireCheckedClose,RequireCheckedSyscalls)
+       and diag('Unexpected success closing already closed filehandle');
 
    my $in_fh;
    open $in_fh, '<', $testfile or die 'Cannot read temp file';

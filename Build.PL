@@ -1,12 +1,13 @@
 use Module::Build;
 Module::Build->new(
    module_name => 'CGI::Compress::Gzip',
-   dist_author => 'Clotho Advanced Media, Inc. <cpan@clotho.com>',
+   dist_author => 'Chris Dolan <cdolan@cpan.org>',
    license => 'perl',
    requires => {
       'perl'             => '5.006',
       'CGI'              => '2.00',
       'IO::Zlib'         => '1.01',
+      'Compress::Zlib'   => 0,  # it's possible to run IO::Zlib in external gzip mode, which has been problematic
    },
    build_requires => {
       'Test::More'       => '0.01',

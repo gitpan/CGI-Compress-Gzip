@@ -1,5 +1,11 @@
 Revision history for Perl module CGI::Compress::Gzip
 
+1.00  06 Oct 2008
+      [FIXES]
+      - OK, the last one didn't really fix it.  This time I think I nailed it with the help of:
+        srezic via http://www.nntp.perl.org/group/perl.cpan.testers/2008/10/msg2382496.html
+        (and many others)
+
 0.23  05 Oct 2008
       [FIXES]
       - FINALLY fixed a long standing, spurious test failure due to

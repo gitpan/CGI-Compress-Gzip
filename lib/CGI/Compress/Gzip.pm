@@ -7,7 +7,7 @@ use English qw(-no_match_vars);
 use CGI::Compress::Gzip::FileHandle;
 use base 'CGI';
 
-our $VERSION = '0.23';
+our $VERSION = '1.00';
 
 # Package globals - testing and debugging flags
 
@@ -20,8 +20,6 @@ our $global_can_compress    = undef; # 1 = yes, 0 = no, undef = don't know yet
 our $global_give_reason = 0;
 
 #=encoding utf8
-
-=for stopwords Laga Mahesa Rezic Rhesa Rozendaal Slaven Willamowius Zlib brian foy webserver Koenig destructor
 
 =head1 NAME
 
@@ -44,17 +42,15 @@ under the same terms as Perl itself.
    print $cgi->header();
    print "<html> ...";
 
+See the CAVEATS section below!
+
 =head1 DESCRIPTION
 
-[This is beta code, but we use it in our production Linux
-environments.  See the CAVEATS section below for potential gotchas.
-I have received reports that it fails under Windows.  Help!]
-
-CGI::Compress::Gzip extends the CGI class to auto-detect whether the
+CGI::Compress::Gzip extends the CGI module to auto-detect whether the
 client browser wants compressed output and, if so and if the script
 chooses HTML output, apply gzip compression on any content header for
 STDOUT.  This module is intended to be a drop-in replacement for
-CGI.pm in a typical scripting environment.
+CGI.pm.
 
 Apache mod_perl users may wish to consider the Apache::Compress or
 Apache::GzipChain modules, which allow more transparent output
@@ -68,7 +64,7 @@ At the time that a header is requested, CGI::Compress::Gzip checks the
 HTTP_ACCEPT_ENCODING environment variable (passed by Apache).  If this
 variable includes the flag "gzip" and the outgoing mime-type is
 "text/*", then gzipped output is preferred.  [the default mime-type
-selection of text/* can be changed by subclasses -- see below]  The
+selection of text/* can be changed by subclassing -- see below]  The
 header is altered to add the "Content-Encoding: gzip" flag which
 indicates that compression is turned on.
 
@@ -211,6 +207,8 @@ sub isCompressibleType
 }
 
 =item $self->header([HEADER ARGS])
+
+Overrides the C<header()> method in L<CGI>.
 
 Return a CGI header with the compression flags set properly.  Returns
 an empty string is a header has already been printed.
@@ -443,7 +441,7 @@ sub _start_compression
 
 =item $self->DESTROY()
 
-Override the CGI destructor so we can close the Gzip output stream, if
+Override the L<CGI> destructor so we can close the Gzip output stream, if
 there is one open.
 
 =cut
@@ -471,14 +469,6 @@ __END__
 =back
 
 =head1 CAVEATS
-
-=head2 Windows
-
-This module fails tests specifically under Windows in ways I do not
-understand, as reported by CPANPLUS testers.  There is some problem
-with my IO::Zlib tests.  If anyone knows about IO::Zlib failures or
-caveats on Windows, please let me know.  It *might* be related to
-binmode, but I have not tested this theory.
 
 =head2 Apache::Registry
 
@@ -553,9 +543,9 @@ break.  For example:
    print $q->header;
    print "Hello, world\n";
 
-Future versions may try to parse the header to look for its end rather
+Future versions could try to parse the header to look for its end rather
 than insisting that the printed version match the version returned by
-header().
+header().  Patches would be very welcome.
 
 =head1 SEE ALSO
 
@@ -566,11 +556,12 @@ webserver configuration.
 
 =head1 AUTHOR
 
-Clotho Advanced Media, I<cpan@clotho.com>
+Chris Dolan
 
-Primary developer: Chris Dolan
+This module was originally developed by me at Clotho Advanced Media
+Inc.  Now I maintain it in my spare time.
 
-=head1 THANKS
+=head1 ACKNOWLEDGMENTS
 
 Clotho greatly appreciates the assistance and feedback the community
 has extended to help refine this module.
@@ -581,8 +572,9 @@ Thanks to Laga Mahesa who did some Windows testing and
 experimentation.
 
 Thanks to Slaven Rezic who 1) found several header handling bugs, 2)
-discovered the Apache::Registry and Filehandle caveats, and 3)
-provided a patch incorporated into v0.17.
+discovered the Apache::Registry and Filehandle caveats, 3) provided a
+patch incorporated into v0.17, and 4) persisted with smoke tests that
+reproduced the envvar problem fixed in v0.23.
 
 Thanks to Jan Willamowius who found a header handling bug.
 
@@ -592,5 +584,8 @@ Thanks to Andreas J. Koenig and brian d foy for module naming advice.
 
 If you like this module, please help by testing on Windows or in a
 C<FastCGI> environment, since I have neither available for easy testing.
+
+Personally, I don't use this module much anymore as all of my work is on
+Catalyst and mod_perl now.
 
 =cut

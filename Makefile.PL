@@ -6,6 +6,7 @@ WriteMakefile
           'VERSION_FROM' => 'lib/CGI/Compress/Gzip.pm',
           'PREREQ_PM' => {
                            'CGI' => '2.00',
+                           'Compress::Zlib' => '0',
                            'File::Temp' => '0',
                            'IO::Zlib' => '1.01',
                            'Test::More' => '0.01'

@@ -12,6 +12,7 @@ $SIG{__DIE__} = \&Carp::cluck;
 
 use CGI::Compress::Gzip;
 $CGI::Compress::Gzip::global_give_reason = 1;
+$OUTPUT_AUTOFLUSH = 0;  # aka $|
 
 while (@ARGV && $ARGV[0] =~ m/\A -D([^=]+)=(.+) \z/xms) {
    $ENV{$1} = $2;
