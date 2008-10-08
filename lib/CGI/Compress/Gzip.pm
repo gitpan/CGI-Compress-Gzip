@@ -7,7 +7,7 @@ use English qw(-no_match_vars);
 use CGI::Compress::Gzip::FileHandle;
 use base 'CGI';
 
-our $VERSION = '1.00';
+our $VERSION = '1.01';
 
 # Package globals - testing and debugging flags
 

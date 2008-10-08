@@ -7,7 +7,7 @@ use English qw(-no_match_vars);
 use Compress::Zlib;
 
 use base qw(IO::Zlib);
-our $VERSION = '1.00';
+our $VERSION = '1.01';
 
 #=encoding utf8
 

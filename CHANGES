@@ -1,10 +1,22 @@
 Revision history for Perl module CGI::Compress::Gzip
 
+1.01  07 Oct 2008
+      [FIXES]
+      - CGI.pm is downcasing headers on some smoke machines.  I don't know why.
+        srezic via http://www.nntp.perl.org/group/perl.cpan.testers/2008/10/msg2390972.html
+      [PREREQUISITES]
+      - Upped Compress::Zlib to v2.  Paul Marquess has pointed out
+        that I can use improvement in Compress::Zlib to get streaming
+        under mod_perl
+
 1.00  06 Oct 2008
       [FIXES]
       - OK, the last one didn't really fix it.  This time I think I nailed it with the help of:
         srezic via http://www.nntp.perl.org/group/perl.cpan.testers/2008/10/msg2382496.html
         (and many others)
+      [PREREQUISITES]
+      - Added Compress::Zlib.  At least one user was bitten by
+        IO::Zlib's support for shelling out to command-line gzip.
 
 0.23  05 Oct 2008
       [FIXES]

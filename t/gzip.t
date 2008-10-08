@@ -280,11 +280,12 @@ my $eol = "\015\012"; ## no critic (ProhibitEscapedCharacters)
 
 # no compression
 {
-   my $reason = 'X-non-gzip-reason: user agent does not want gzip' . $eol;
+   my $reason = 'x-non-gzip-reason: user agent does not want gzip' . $eol;
    my $out = `$basecmd simple "$compare"`;
-   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//ms &&
-      $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/ms,
+   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//msi &&
+      $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
       'CGI template (header encoding text)');
+   $out =~ s/x-non-gzip-reason/x-non-gzip-reason/msi; # lc
    is($out, $reason . $compareheader.$compare, 'CGI template (body test)');
 }
 
@@ -295,8 +296,8 @@ my $eol = "\015\012"; ## no critic (ProhibitEscapedCharacters)
    my $zempty = Compress::Zlib::memGzip(q{});
 
    my $out = `$basecmd empty "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//ms ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/ms,
+   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
+      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
       'no body (header encoding text)');
    is($out, $compareheader.$zempty, 'no body (body test)');
 }
@@ -306,8 +307,8 @@ my $eol = "\015\012"; ## no critic (ProhibitEscapedCharacters)
    local $ENV{HTTP_ACCEPT_ENCODING} = 'gzip';
 
    my $out = `$basecmd simple "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//ms ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/ms,
+   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
+      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
       'Gzipped CGI template (header encoding text)');
    is($out, $compareheader.$zcompare, 'Gzipped CGI template (body test)');
 }
@@ -319,8 +320,8 @@ my $eol = "\015\012"; ## no critic (ProhibitEscapedCharacters)
    my $header = CGI->new(q{})->header(-Content_Type => 'text/html; charset=UTF-8');
 
    my $out = `$basecmd charset "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//ms ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/ms,
+   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
+      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
       'Gzipped CGI template with charset (header encoding text)');
    is($out, $header.$zcompare,
       'Gzipped CGI template with charset (body test)');
@@ -328,46 +329,49 @@ my $eol = "\015\012"; ## no critic (ProhibitEscapedCharacters)
 
 # CGI with arguments
 {
-   my $reason = 'X-non-gzip-reason: incompatible content-type foo/bar' . $eol;
+   my $reason = 'x-non-gzip-reason: incompatible content-type foo/bar' . $eol;
    my $header = CGI->new(q{})->header(-Type => 'foo/bar');
 
    my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip type "$compare"`;
-   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//ms &&
-      $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/ms,
+   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//msi &&
+      $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
       'Un-Gzipped with -Type flag (argument processing text)');
+   $out =~ s/x-non-gzip-reason/x-non-gzip-reason/msi; # lc
    is($out, $reason . $header.$compare,
       'Un-Gzipped with -Type flag (body test)');
 }
 
 # CGI redirection and compression
 {
-   my $reason = 'X-non-gzip-reason: HTTP status not 200' . $eol;
+   my $reason = 'x-non-gzip-reason: HTTP status not 200' . $eol;
    my $expected_header = CGI->new(q{})->redirect($redir);
    $expected_header =~ s/\s+\z/$eol$reason$eol/xms; # this is a more fragile regexp than expected...
    # A simple s/$eol$eol/.../xms did not work
 
    my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip redirect "$redir"`;
-   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//ms &&
-      $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/ms,
+   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//msi &&
+      $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
       'CGI redirect (header encoding text)');
+   $out =~ s/x-non-gzip-reason/x-non-gzip-reason/msi; # lc
    is($out, $expected_header, 'CGI redirect (body test)');
 }
 
 # unbuffered CGI
 {
-   my $reason = 'X-non-gzip-reason: user agent does not want gzip' . $eol;
+   my $reason = 'x-non-gzip-reason: user agent does not want gzip' . $eol;
    my $out = `$basecmd simple "$compare"`;
-   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//ms &&
-      $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/ms,
+   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//msi &&
+      $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
       'unbuffered CGI (header encoding text)');
+   $out =~ s/x-non-gzip-reason/x-non-gzip-reason/msi; # lc
    is($out, $reason . $compareheader.$compare, 'unbuffered CGI (body test)');
 }
 
 # Simulated mod_perl
 {
    my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip mod_perl "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//ms ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/ms,
+   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
+      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
       'mod_perl simulation (header encoding text)');
    is($out, $compareheader.$zcompare, 'mod_perl simulation (body test)');
 }
@@ -375,8 +379,8 @@ my $eol = "\015\012"; ## no critic (ProhibitEscapedCharacters)
 # Double print header
 {
    my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip doublehead "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//ms ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/ms,
+   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
+      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
       'double header (header encoding text)');
    is($out, $compareheader.$zcompare, 'double header (body test)');
 }
@@ -384,8 +388,8 @@ my $eol = "\015\012"; ## no critic (ProhibitEscapedCharacters)
 # redirected filehandle
 SKIP: {
    my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip fh1 "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//ms ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/ms,
+   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
+      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
       'filehandle (header encoding text)');
    is($out, $compareheader.$zcompare, 'filehandle (body test)');
 }
@@ -395,8 +399,8 @@ SKIP: {
    skip('Explicit use of filehandles not yet supported', 2);
 
    my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip fh2 "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//ms ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/ms,
+   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
+      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
       'filehandle (header encoding text)');
    is($out, $compareheader.$zcompare, 'filehandle (body test)');
 }
@@ -406,8 +410,8 @@ SKIP: {
    skip('Explicit use of filehandles not yet supported', 2);
 
    my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip fh3 "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//ms ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/ms,
+   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
+      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
       'filehandle (header encoding text)');
    is($out, $compareheader.$zcompare, 'filehandle (body test)');
 }

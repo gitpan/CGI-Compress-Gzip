@@ -7,7 +7,7 @@ Module::Build->new(
       'perl'             => '5.006',
       'CGI'              => '2.00',
       'IO::Zlib'         => '1.01',
-      'Compress::Zlib'   => 0,  # it's possible to run IO::Zlib in external gzip mode, which has been problematic
+      'Compress::Zlib'   => 2,  # Need v2 for coming fileno support
    },
    build_requires => {
       'Test::More'       => '0.01',
