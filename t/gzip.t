@@ -15,7 +15,7 @@ use English qw(-no_match_vars);
 
 BEGIN
 {
-   use Test::More tests => 56;
+   use Test::More tests => 44;
    use_ok('CGI::Compress::Gzip');
 }
 
@@ -256,12 +256,15 @@ is ($testbuf, $compare, 'Compress::Zlib double-check');
 
 # Older versions of this test used to set
 #     local $ENV{HTTP_ACCEPT_ENCODING} = 'gzip'
-# and expected subshells to propagate that value.  That caused some
-# smoke environments to fail, so I switched to passing that value as a
-# cmdline argument.
+# and expected subshells to propagate that value.  I had thought that
+# caused some smoke environments to fail, so I switched to passing
+# that value as a cmdline argument.  It turns out I was wrong (it was
+# $| that caused the failures) but I left it anyway.
 
 # Turn off compression
 ok(CGI::Compress::Gzip->useCompression(0), 'Turn off compression');
+
+my $eol = "\015\012"; ## no critic (ProhibitEscapedCharacters)
 
 my $redir = 'http://www.foo.com/';
 
@@ -274,57 +277,36 @@ my $basecmd = "$interp t/testhelp";
 # Get CGI header for comparison in basic case
 my $compareheader = CGI->new(q{})->header();
 
-my $eol = "\015\012"; ## no critic (ProhibitEscapedCharacters)
+my $gzip = 'Content-Encoding: gzip' . $eol;
 
-## no critic (RequireExtendedFormatting)
 
 # no compression
 {
    my $reason = 'x-non-gzip-reason: user agent does not want gzip' . $eol;
    my $out = `$basecmd simple "$compare"`;
-   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//msi &&
-      $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
-      'CGI template (header encoding text)');
-   $out =~ s/x-non-gzip-reason/x-non-gzip-reason/msi; # lc
-   is($out, $reason . $compareheader.$compare, 'CGI template (body test)');
+   msgs_match($out, $reason . $compareheader . $compare, 'CGI template');
 }
 
 # no body
 {
-   local $ENV{HTTP_ACCEPT_ENCODING} = 'gzip';
-
    my $zempty = Compress::Zlib::memGzip(q{});
 
-   my $out = `$basecmd empty "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
-      'no body (header encoding text)');
-   is($out, $compareheader.$zempty, 'no body (body test)');
+   my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip empty "$compare"`;
+   msgs_match($out, $gzip . $compareheader . $zempty, 'no body');
 }
 
 # CGI and compression
 {
-   local $ENV{HTTP_ACCEPT_ENCODING} = 'gzip';
-
-   my $out = `$basecmd simple "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
-      'Gzipped CGI template (header encoding text)');
-   is($out, $compareheader.$zcompare, 'Gzipped CGI template (body test)');
+   my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip simple "$compare"`;
+   msgs_match($out, $gzip . $compareheader.$zcompare, 'Gzipped CGI template');
 }
 
 # CGI with charset and compression
 {
-   local $ENV{HTTP_ACCEPT_ENCODING} = 'gzip';
-
    my $header = CGI->new(q{})->header(-Content_Type => 'text/html; charset=UTF-8');
 
-   my $out = `$basecmd charset "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
-      'Gzipped CGI template with charset (header encoding text)');
-   is($out, $header.$zcompare,
-      'Gzipped CGI template with charset (body test)');
+   my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip charset "$compare"`;
+   msgs_match($out, $gzip . $header . $zcompare, 'Gzipped CGI template with charset');
 }
 
 # CGI with arguments
@@ -333,85 +315,74 @@ my $eol = "\015\012"; ## no critic (ProhibitEscapedCharacters)
    my $header = CGI->new(q{})->header(-Type => 'foo/bar');
 
    my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip type "$compare"`;
-   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//msi &&
-      $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
-      'Un-Gzipped with -Type flag (argument processing text)');
-   $out =~ s/x-non-gzip-reason/x-non-gzip-reason/msi; # lc
-   is($out, $reason . $header.$compare,
-      'Un-Gzipped with -Type flag (body test)');
+   msgs_match($out, $reason . $header.$compare, 'Un-Gzipped with -Type flag');
 }
 
 # CGI redirection and compression
 {
    my $reason = 'x-non-gzip-reason: HTTP status not 200' . $eol;
    my $expected_header = CGI->new(q{})->redirect($redir);
-   $expected_header =~ s/\s+\z/$eol$reason$eol/xms; # this is a more fragile regexp than expected...
-   # A simple s/$eol$eol/.../xms did not work
 
    my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip redirect "$redir"`;
-   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//msi &&
-      $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
-      'CGI redirect (header encoding text)');
-   $out =~ s/x-non-gzip-reason/x-non-gzip-reason/msi; # lc
-   is($out, $expected_header, 'CGI redirect (body test)');
+   msgs_match($out, $reason . $expected_header, 'CGI redirect');
 }
 
 # unbuffered CGI
 {
    my $reason = 'x-non-gzip-reason: user agent does not want gzip' . $eol;
    my $out = `$basecmd simple "$compare"`;
-   ok($out !~ s/Content-[Ee]ncoding: gzip\r?\n//msi &&
-      $out !~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
-      'unbuffered CGI (header encoding text)');
-   $out =~ s/x-non-gzip-reason/x-non-gzip-reason/msi; # lc
-   is($out, $reason . $compareheader.$compare, 'unbuffered CGI (body test)');
+   msgs_match($out, $reason . $compareheader.$compare, 'unbuffered CGI');
 }
 
 # Simulated mod_perl
 {
    my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip mod_perl "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
-      'mod_perl simulation (header encoding text)');
-   is($out, $compareheader.$zcompare, 'mod_perl simulation (body test)');
+   msgs_match($out, $gzip . $compareheader . $zcompare, 'mod_perl simulation');
 }
 
 # Double print header
 {
    my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip doublehead "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
-      'double header (header encoding text)');
-   is($out, $compareheader.$zcompare, 'double header (body test)');
+   msgs_match($out, $gzip . $compareheader . $zcompare, 'double header');
 }
 
 # redirected filehandle
-SKIP: {
+{
    my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip fh1 "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
-      'filehandle (header encoding text)');
-   is($out, $compareheader.$zcompare, 'filehandle (body test)');
+   msgs_match($out, $gzip . $compareheader . $zcompare, 'filehandle, fh=STDOUT plus select');
 }
 
 # redirected filehandle
-SKIP: {
-   skip('Explicit use of filehandles not yet supported', 2);
+{
+   local $TODO = 'Explicit use of filehandles not yet supported';
 
    my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip fh2 "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
-      'filehandle (header encoding text)');
-   is($out, $compareheader.$zcompare, 'filehandle (body test)');
+   msgs_match($out, $gzip . $compareheader . $zcompare, 'filehandle, explict STDOUT');
 }
 
 # redirected filehandle
-SKIP: {
-   skip('Explicit use of filehandles not yet supported', 2);
+{
+   local $TODO = 'Explicit use of filehandles not yet supported';
 
    my $out = `$basecmd -DHTTP_ACCEPT_ENCODING=gzip fh3 "$compare"`;
-   ok($out =~ s/Content-[Ee]ncoding: gzip\r?\n//msi ||
-      $out =~ s/^(Content-[Ee]ncoding:\s*)gzip, /$1/msi,
-      'filehandle (header encoding text)');
-   is($out, $compareheader.$zcompare, 'filehandle (body test)');
+   msgs_match($out, $gzip . $compareheader . $zcompare, 'filehandle, explicit fh');
+}
+
+sub msgs_match {
+   my ($got, $expected, $message) = @_;
+   my ($got_head, $got_body) = split m/\015\012\015\012/xms, $got, 2;
+   my ($exp_head, $exp_body) = split m/\015\012\015\012/xms, $expected, 2;
+   my %exp = map {lc($_) => 1} split m/\015\012/xms, $exp_head;
+   for my $got_head_line (split m/\015\012/xms, $got_head) {
+      if (!delete $exp{lc $got_head_line}) {
+         return is($got, $expected, $message . ' -- extra header: ' . $got_head_line); # fail
+      }
+   }
+   if (scalar keys %exp) {
+      return is($got, $expected, $message . ' -- missing header: ' . [keys %exp]->[0]); # fail
+   }
+   if ($got_body ne $exp_body) {
+      return is($got, $expected, $message . ' -- bodies do not match'); # fail
+   }
+   return pass($message);
 }

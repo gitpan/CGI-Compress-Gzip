@@ -1,5 +1,9 @@
 Revision history for Perl module CGI::Compress::Gzip
 
+1.02  16 Oct 2008
+      [FIXES]
+      - Make the test code more robust against reordered headers
+
 1.01  07 Oct 2008
       [FIXES]
       - CGI.pm is downcasing headers on some smoke machines.  I don't know why.
