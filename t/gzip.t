@@ -370,10 +370,11 @@ my $gzip = 'Content-Encoding: gzip' . $eol;
 
 sub msgs_match {
    my ($got, $expected, $message) = @_;
-   my ($got_head, $got_body) = split m/\015\012\015\012/xms, $got, 2;
-   my ($exp_head, $exp_body) = split m/\015\012\015\012/xms, $expected, 2;
-   my %exp = map {lc($_) => 1} split m/\015\012/xms, $exp_head;
-   for my $got_head_line (split m/\015\012/xms, $got_head) {
+   ## no critic (RegularExpressions::RequireLineBoundaryMatching)
+   my ($got_head, $got_body) = split m/\015\012\015\012/xs, $got, 2;
+   my ($exp_head, $exp_body) = split m/\015\012\015\012/xs, $expected, 2;
+   my %exp = map {lc($_) => 1} split m/\015\012/xs, $exp_head;
+   for my $got_head_line (split m/\015\012/xs, $got_head) {
       if (!delete $exp{lc $got_head_line}) {
          return is($got, $expected, $message . ' -- extra header: ' . $got_head_line); # fail
       }

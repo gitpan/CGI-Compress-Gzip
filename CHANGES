@@ -1,5 +1,9 @@
 Revision history for Perl module CGI::Compress::Gzip
 
+1.03  17 Oct 2008
+      [FIXES]
+      - A speculative \n fix for Win32
+
 1.02  16 Oct 2008
       [FIXES]
       - Make the test code more robust against reordered headers
